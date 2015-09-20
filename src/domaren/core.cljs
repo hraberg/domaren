@@ -27,9 +27,8 @@
 (defn create-element [dom-node tag]
   (if (= (s/upper-case tag) (some-> dom-node .-tagName))
     dom-node
-    (let [element (.createElement js/document tag)]
-      (set! (.-__domaren element) #js {})
-      element)))
+    (doto (.createElement js/document tag)
+      (aset "__domaren" #js {}))))
 
 (defn markup-changed? [dom-node hiccup]
   (not= (-> dom-node .-__domaren .-hiccup) hiccup))
@@ -101,17 +100,16 @@
 
           :else
           (remove-all-children-after! (some-> child .-previousSibling))))
-      (set! (.-keys (.-__domaren element)) new-key-map)
-      (set! (.-hiccup (.-__domaren element)) hiccup))
+      (doto (.-__domaren element)
+        (aset "keys" new-key-map)
+        (aset "hiccup" hiccup)))
     element))
 
 (defn text->dom! [dom-node text]
   (if (and dom-node (= (.-TEXT_NODE js/Node)
                        (.-nodeType dom-node)))
-    (do
-      (when-not (= (.-textContent dom-node) text)
-        (set! (.-textContent dom-node) text))
-      dom-node)
+    (cond-> dom-node
+      (not= (.-textContent dom-node) text) (doto (aset "textContent" text)))
     (.createTextNode js/document text)))
 
 (defn hiccup->dom! [dom-node hiccup]
@@ -132,12 +130,11 @@
 (defn component->dom! [dom-node f & state]
   (let [state (vec state)]
     (if (should-component-update? dom-node state)
-      (time
-       (do
-         (println "Rendering Component" (.-name f) dom-node state)
-         (let [new-node (hiccup->dom! dom-node (apply f state))]
-           (set! (.-state (.-__domaren new-node)) state)
-           new-node)))
+      (do
+        (println "Rendering Component" (.-name f) dom-node state)
+        (time
+         (doto (hiccup->dom! dom-node (apply f state))
+           (aset "__domaren" "state" state))))
       dom-node)))
 
 (defn maybe-deref [x]
@@ -150,8 +147,9 @@
        (let [current-node (.-firstChild dom-node)
              new-node (component->dom! current-node (maybe-deref f) (maybe-deref state))]
          (when-not (= new-node current-node)
-           (set! (.-innerHTML dom-node) "")
-           (.appendChild dom-node new-node)))
+           (doto dom-node
+             (aset "innerHTML" "")
+             (.appendChild new-node))))
        (finally
          (reset! force-rerender false)
          (js/requestAnimationFrame tick))))))
