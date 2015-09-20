@@ -170,7 +170,7 @@
 (defn maybe-deref [x]
   (cond-> x (satisfies? IDeref x) deref))
 
-(defn render-loop! [f node state]
+(defn render! [node f state]
   (js/requestAnimationFrame
    (fn tick []
      (binding [*refresh* (compare-and-set! request-refresh true false)

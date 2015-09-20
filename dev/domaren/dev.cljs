@@ -24,9 +24,9 @@
    ^{:did-mount (fn [node] (.debug js/console "Did Mount" node (.-parentNode node)))}
    [foo-component (:count state)]])
 
-(domaren.core/render-loop!
- #'render-app
+(domaren.core/render!
  (.getElementById js/document "app")
+ #'render-app
  app-state)
 
 (comment
