@@ -1,0 +1,134 @@
+(ns ^:figwheel-always domaren.core
+    (:require [clojure.string :as s]))
+
+(enable-console-print!)
+
+(defonce app-state (atom {:text "Hello world!" :count 2}))
+(defonce force-rerender (atom false))
+
+;; From https://github.com/weavejester/hiccup
+(def ^{:doc "Regular expression that parses a CSS-style id and class from an element name."
+       :private true}
+  re-tag #"([^\s\.#]+)(?:#([^\s\.#]+))?(?:\.([^\s#]+))?")
+
+(declare render-component-fn)
+
+(defn node-attributes [dom-node]
+  (let [attributes (.-attributes dom-node)]
+    (areduce attributes idx acc []
+             (conj acc (.-name (.item attributes idx))))))
+
+(defn hiccup->dom [dom-node hiccup]
+  (cond
+    (and (vector? hiccup)
+         (fn? (first hiccup)))
+    (apply render-component-fn dom-node hiccup)
+
+    (vector? hiccup)
+    (let [[tag & [attributes :as children]] hiccup
+          [attributes children] (if (map? attributes)
+                                  [attributes (rest children)]
+                                  [{} children])
+          [_ tag id class] (re-find re-tag (name tag))
+          classes (s/split class ".")
+          element (if (= (s/upper-case tag) (some-> dom-node .-tagName))
+                    dom-node
+                    (.createElement js/document tag))]
+      (when-not (= (.-__domareHiccup element) hiccup)
+        (doseq [[k v] {"id" id "className" (s/join " " classes)}
+                :when (not= (aget element k) v)]
+          (aset element k (or v "")))
+        (doseq [[k v] attributes
+                :let [k (name k)]
+                :when (not= (.getAttribute element k) v)]
+          (.setAttribute element k (or v "")))
+        (doseq [k (remove (into #{"id" "className"} (map name (keys attributes)))
+                          (node-attributes element))]
+          (.removeAttribute element k))
+        (loop [[h & hs] children child (.-firstChild element)]
+          (cond
+            (seq? h)
+            (recur (concat h hs) child)
+
+            h
+            (let [new-child (hiccup->dom child h)]
+              (cond
+                (and child (not= child new-child))
+                (.replaceChild element new-child child)
+
+                (not child)
+                (.appendChild element new-child))
+              (recur hs (.-nextSibling new-child)))
+
+            :else
+            (when-let [last-child (some-> child .-previousSibling)]
+              (while (.-nextSibling last-child)
+                (.remove (.-nextSibling last-child))))))
+        (set! (.-__domareHiccup element) hiccup))
+      element)
+
+    :else
+    (if (and dom-node (= (.-TEXT_NODE js/Node)
+                         (.-nodeType dom-node)))
+      (do
+        (when-not (= (.-textContent dom-node) hiccup)
+          (set! (.-textContent dom-node) hiccup))
+        dom-node)
+      (.createTextNode js/document hiccup))))
+
+(defn should-component-update? [dom-node state]
+  (or (not= (some-> dom-node .-__domareState) state)
+      @force-rerender))
+
+(defn render-component-fn [dom-node f & state]
+  (let [state (vec state)]
+    (if (should-component-update? dom-node state)
+      (time
+       (try
+         (println "Rendering Component" (.-name f) dom-node state)
+         (let [new-node (hiccup->dom dom-node (apply f state))]
+           (set! (.-__domareState new-node) state)
+           new-node)))
+      dom-node)))
+
+(defn maybe-deref [x]
+  (cond-> x (satisfies? IDeref x) deref))
+
+(defn render-loop [f dom-node state]
+  (js/requestAnimationFrame
+   (fn tick []
+     (try
+       (let [current-node (.-firstChild dom-node)
+             new-node (render-component-fn current-node (maybe-deref f) (maybe-deref state))]
+         (when-not (= new-node current-node)
+           (set! (.-innerHTML dom-node) "")
+           (.appendChild dom-node new-node)))
+       (finally
+         (reset! force-rerender false)
+         (js/requestAnimationFrame tick))))))
+
+(defn foo-component [count]
+  [:pre count])
+
+(defn render-app [state]
+  [:div#2.foo.bar {:title "FOO"}
+   [:h1 (:text state)]
+   (for [i (range 3)]
+     [:span i])
+   [foo-component (* 5 (:count state))]
+   [foo-component (* 5 (:count state))]
+   [foo-component (* 2 (:count state))]
+   [foo-component (* 2 (:count state))]])
+
+(render-loop #'render-app
+             (.getElementById js/document "app")
+             app-state)
+
+(defn on-js-reload []
+  (println "Forcing rerender")
+  (reset! force-rerender true))
+
+(comment
+  (do
+    (require 'figwheel-sidecar.repl-api)
+    (figwheel-sidecar.repl-api/cljs-repl)))
