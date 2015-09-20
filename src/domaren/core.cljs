@@ -69,9 +69,8 @@
       (doto element
         (add-properties! properties)
         (add-attributes! attributes)
-        (remove-attributes! (->> element
-                                 node-attributes
-                                 (remove (set (map name (keys attributes)))))))
+        (remove-attributes! (remove (set (map name (keys attributes)))
+                                    (node-attributes element))))
       (loop [[h & hs] children child (.-firstChild element)]
         (cond
           (seq? h)
