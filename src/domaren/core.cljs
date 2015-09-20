@@ -33,6 +33,7 @@
 
 (defn add-properties! [node properties]
   (doseq [[k v] properties
+          :let [k (name k)]
           :when (not= (aget node k) v)]
     (aset node k (or v ""))))
 
@@ -50,21 +51,27 @@
   (while (some-> node .-nextSibling)
     (.remove (.-nextSibling node))))
 
+(defn event-handlers [attributes]
+  (into {} (filter (comp fn? val) attributes)))
+
 (defn html->dom! [node hiccup]
   (let [[tag & [attributes :as children]] hiccup
         [attributes children] (if (map? attributes)
                                 [attributes (rest children)]
                                 [{} children])
         [_ tag id class] (re-find re-tag (name tag))
-        classes (s/split class ".")
+        class (->> (:class attributes)
+                   (concat (s/split class "."))
+                   (s/join " "))
+        attributes (merge attributes {:id id :class class})
+        handlers (event-handlers attributes)
+        attributes (apply dissoc attributes (keys handlers))
         node (create-element node tag)
         key-map (-> node .-__domaren .-keys)
-        new-key-map #js {}
-        properties {"id" (or id (:id attributes))
-                    "className" (s/join " " (concat classes (:class attributes)))}]
+        new-key-map #js {}]
     (when (markup-changed? node hiccup)
       (doto node
-        (add-properties! properties)
+        (add-properties! handlers)
         (add-attributes! attributes)
         (remove-attributes! (remove (set (map name (keys attributes)))
                                     (node-attributes node))))
@@ -113,7 +120,7 @@
 (defn hiccup->dom! [node hiccup]
   (cond
     (component? hiccup)
-    (apply component->dom! node hiccup)
+    (apply component->dom! node (meta hiccup) hiccup)
 
     (hiccup? hiccup)
     (html->dom! node hiccup)
@@ -131,7 +138,19 @@
   (or (not= (some-> node .-__domaren .-state) state)
       *refresh*))
 
-(defn component->dom! [node f & state]
+(defn component-will-mount? [node]
+  (not (.-parentNode node)))
+
+(def ^:dynamic *mounted-nodes*)
+
+(defn component-callbacks! [node {:keys [did-mount will-mount]}]
+  (when (component-will-mount? node)
+    (when will-mount
+      (will-mount node))
+    (when did-mount
+      (swap! *mounted-nodes* conj (partial did-mount node)))))
+
+(defn component->dom! [node opts f & state]
   (let [state (vec state)
         component-name (component-name f)]
     (if (should-component-update? node state)
@@ -141,7 +160,8 @@
         (when DEBUG
           (.debug js/console component-name node (s/trim (pr-str state))))
         (doto (hiccup->dom! node (apply f state))
-          (aset "__domaren" "state" state))
+          (aset "__domaren" "state" state)
+          (component-callbacks! opts))
         (finally
           (when TIME
             (.timeEnd js/console component-name))))
@@ -153,16 +173,19 @@
 (defn render-loop! [f node state]
   (js/requestAnimationFrame
    (fn tick []
-     (try
-       (let [current-node (.-firstChild node)
-             new-node (binding [*refresh* (compare-and-set! request-refresh true false)]
-                        (component->dom! current-node (maybe-deref f) (maybe-deref state)))]
-         (when-not (= new-node current-node)
-           (doto node
-             (aset "innerHTML" "")
-             (.appendChild new-node))))
-       (finally
-         (js/requestAnimationFrame tick))))))
+     (binding [*refresh* (compare-and-set! request-refresh true false)
+               *mounted-nodes* (atom [])]
+       (try
+         (let [current-node (.-firstChild node)
+               new-node (component->dom! current-node {} (maybe-deref f) (maybe-deref state))]
+           (when-not (= new-node current-node)
+             (doto node
+               (aset "innerHTML" "")
+               (.appendChild new-node))))
+         (finally
+           (doseq [f @*mounted-nodes*]
+             (f))
+           (js/requestAnimationFrame tick)))))))
 
 (defn refresh! []
   (.info js/console "refresh!")

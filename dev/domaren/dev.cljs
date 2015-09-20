@@ -8,18 +8,20 @@
 
 (defonce app-state (atom {:text "Hello world!" :count 2}))
 
-(defn foo-component [count]
-  [:pre count])
+(defn foo-component [count f]
+  [:pre {:onclick (fn [evt] (when f (f evt)))} count])
 
 (defn render-app [state]
   [:div#2.foo.bar {:title "FOO"}
    [:h1 (:text state)]
    (for [i (shuffle (range 3))]
      ^{:key i} [:span i])
+   ^{:will-mount (fn [node] (.debug js/console "Will Mount" node (.-parentNode node)))}
    [foo-component (* 5 (:count state))]
    [foo-component (* 5 (:count state))]
    [foo-component (* 2 (:count state))]
-   [foo-component (* 2 (:count state))]
+   [foo-component (* 2 (:count state)) (fn [evt] (js/alert "!"))]
+   ^{:did-mount (fn [node] (.debug js/console "Did Mount" node (.-parentNode node)))}
    [foo-component (:count state)]])
 
 (domaren.core/render-loop!
