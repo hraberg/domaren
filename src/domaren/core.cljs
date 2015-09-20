@@ -3,6 +3,9 @@
 
 (enable-console-print!)
 
+(def DEBUG true)
+(def TIME true)
+
 (defonce app-state (atom {:text "Hello world!" :count 2}))
 (defonce force-rerender (atom false))
 
@@ -127,15 +130,23 @@
   (or (not= (some-> node .-__domaren .-state) state)
       @force-rerender))
 
+(defn component-name [f]
+  (s/replace (.-name f) "$" "."))
+
 (defn component->dom! [node f & state]
-  (let [state (vec state)]
+  (let [state (vec state)
+        component-name (component-name f)]
     (if (should-component-update? node state)
-      (do
-        (.log js/console "Rendering Component"
-              (s/replace (.-name f) "$" ".") node (pr-str state))
-        (time
-         (doto (hiccup->dom! node (apply f state))
-           (aset "__domaren" "state" state))))
+      (try
+        (when TIME
+          (.time js/console component-name))
+        (when DEBUG
+          (.debug js/console component-name node (s/trim (pr-str state))))
+        (doto (hiccup->dom! node (apply f state))
+          (aset "__domaren" "state" state))
+        (finally
+          (when TIME
+            (.timeEnd js/console component-name))))
       node)))
 
 (defn maybe-deref [x]
@@ -174,7 +185,7 @@
               app-state)
 
 (defn on-js-reload []
-  (.log js/console "Forcing rerender")
+  (.info js/console "Forcing rerender")
   (reset! force-rerender true))
 
 (comment
