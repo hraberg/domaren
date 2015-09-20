@@ -16,12 +16,14 @@
    [:h1 (:text state)]
    (for [i (shuffle (range 3))]
      ^{:key i} [:span i])
-   ^{:will-mount (fn [node] (.debug js/console "Will Mount" node (.-parentNode node)))}
+   ^{:will-mount (fn [node count]
+                   (.debug js/console "Will Mount" node (.-parentNode node) (pr-str count)))}
    [foo-component (* 5 (:count state))]
    [foo-component (* 5 (:count state))]
    [foo-component (* 2 (:count state))]
    [foo-component (* 2 (:count state)) (fn [evt] (js/alert "!"))]
-   ^{:did-mount (fn [node] (.debug js/console "Did Mount" node (.-parentNode node)))}
+   ^{:did-mount (fn [node count]
+                  (.debug js/console "Did Mount" node (.-parentNode node)  (pr-str count)))}
    [foo-component (:count state)]])
 
 (domaren.core/render!

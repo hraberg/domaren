@@ -23,9 +23,6 @@
     (doto (.createElement js/document tag)
       (aset "__domaren" #js {}))))
 
-(defn markup-changed? [node hiccup]
-  (not= (-> node .-__domaren .-hiccup) hiccup))
-
 (defn add-properties! [node properties]
   (doseq [[k v] properties
           :let [k (name k)]
@@ -38,8 +35,9 @@
           :when (not= (.getAttribute node k) v)]
     (.setAttribute node k (or v ""))))
 
-(defn remove-attributes! [node attributes]
-  (doseq [k attributes]
+(defn keep-attributes! [node keep-attribute?]
+  (doseq [k (node-attributes node)
+          :when (not (keep-attribute? k))]
     (.removeAttribute node k)))
 
 (defn remove-all-children-after! [node]
@@ -55,7 +53,7 @@
   re-tag #"([^\s\.#]+)(?:#([^\s\.#]+))?(?:\.([^\s#]+))?")
 
 (defn align-children! [node children]
-  (let [key-map (-> node .-__domaren .-keys)
+  (let [key-map (aget node "__domaren" "keys")
         new-key-map #js {}]
     (loop [[h & hs] children child (.-firstChild node)]
       (cond
@@ -96,19 +94,14 @@
         class (->> (:class attributes)
                    (concat (s/split class "."))
                    (s/join " "))
-        attributes (merge attributes {:id id :class class})
         handlers (event-handlers attributes)
-        attributes (apply dissoc attributes (keys handlers))
-        node (create-element node tag)]
-    (when (markup-changed? node hiccup)
-      (doto node
-        (add-properties! handlers)
-        (add-attributes! attributes)
-        (remove-attributes! (remove (set (map name (keys attributes)))
-                                    (node-attributes node)))
-        (align-children! children)
-        (aset "__domaren" "hiccup" hiccup)))
-    node))
+        attributes (merge (apply dissoc attributes (keys handlers))
+                          {:id id :class class})]
+    (doto (create-element node tag)
+      (add-properties! handlers)
+      (add-attributes! attributes)
+      (keep-attributes! (set (map name (keys attributes))))
+      (align-children! children))))
 
 (defn text-node? [node]
   (some-> node .-nodeType (== (.-TEXT_NODE js/Node))))
@@ -145,12 +138,11 @@
 
 (def ^:dynamic *mounted-nodes*)
 
-(defn component-callbacks! [node {:keys [did-mount will-mount]}]
+(defn component-callbacks! [node {:keys [did-mount will-mount]} state]
   (when (component-will-mount? node)
-    (when will-mount
-      (will-mount node))
+    (some-> will-mount (apply node state))
     (when did-mount
-      (swap! *mounted-nodes* conj (partial did-mount node)))))
+      (swap! *mounted-nodes* conj (fn [] (apply did-mount node state))))))
 
 (defn component->dom! [node opts f & state]
   (let [state (vec state)
@@ -163,7 +155,7 @@
           (.debug js/console component-name node (s/trim (pr-str state))))
         (doto (hiccup->dom! node (apply f state))
           (aset "__domaren" "state" state)
-          (component-callbacks! opts))
+          (component-callbacks! opts state))
         (finally
           (when TIME
             (.timeEnd js/console component-name))))
