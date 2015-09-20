@@ -11,18 +11,18 @@
        :private true}
   re-tag #"([^\s\.#]+)(?:#([^\s\.#]+))?(?:\.([^\s#]+))?")
 
-(declare render-component-fn)
+(declare render-component-fn!)
 
 (defn node-attributes [dom-node]
   (let [attributes (.-attributes dom-node)]
     (areduce attributes idx acc []
              (conj acc (.-name (.item attributes idx))))))
 
-(defn hiccup->dom [dom-node hiccup]
+(defn hiccup->dom! [dom-node hiccup]
   (cond
     (and (vector? hiccup)
          (fn? (first hiccup)))
-    (apply render-component-fn dom-node hiccup)
+    (apply render-component-fn! dom-node hiccup)
 
     (vector? hiccup)
     (let [[tag & [attributes :as children]] hiccup
@@ -33,8 +33,12 @@
           classes (s/split class ".")
           element (if (= (s/upper-case tag) (some-> dom-node .-tagName))
                     dom-node
-                    (.createElement js/document tag))]
-      (when-not (= (.-__domareHiccup element) hiccup)
+                    (let [element (.createElement js/document tag)]
+                      (set! (.-__domaren element) #js {})
+                      element))
+          key-map (or (some-> element .-__domaren .-keys) #js {})
+          new-key-map #js {}]
+      (when-not (= (-> element .-__domaren .-hiccup) hiccup)
         (doseq [[k v] {"id" id "className" (s/join " " classes)}
                 :when (not= (aget element k) v)]
           (aset element k (or v "")))
@@ -51,7 +55,17 @@
             (recur (concat h hs) child)
 
             h
-            (let [new-child (hiccup->dom child h)]
+            (let [key (some-> h meta :key str)
+                  old-child (aget key-map key)
+                  child (if (and child old-child
+                                 (not= child old-child))
+                          (do
+                            (.replaceChild element old-child child)
+                            old-child)
+                          child)
+                  new-child (hiccup->dom! child h)]
+              (when key
+                (aset new-key-map key new-child))
               (cond
                 (and child (not= child new-child))
                 (.replaceChild element new-child child)
@@ -64,7 +78,8 @@
             (when-let [last-child (some-> child .-previousSibling)]
               (while (.-nextSibling last-child)
                 (.remove (.-nextSibling last-child))))))
-        (set! (.-__domareHiccup element) hiccup))
+        (set! (.-keys (.-__domaren element)) new-key-map)
+        (set! (.-hiccup (.-__domaren element)) hiccup))
       element)
 
     :else
@@ -77,29 +92,29 @@
       (.createTextNode js/document hiccup))))
 
 (defn should-component-update? [dom-node state]
-  (or (not= (some-> dom-node .-__domareState) state)
+  (or (not= (some-> dom-node .-__domaren .-state) state)
       @force-rerender))
 
-(defn render-component-fn [dom-node f & state]
+(defn render-component-fn! [dom-node f & state]
   (let [state (vec state)]
     (if (should-component-update? dom-node state)
       (time
        (try
          (println "Rendering Component" (.-name f) dom-node state)
-         (let [new-node (hiccup->dom dom-node (apply f state))]
-           (set! (.-__domareState new-node) state)
+         (let [new-node (hiccup->dom! dom-node (apply f state))]
+           (set! (.-state (.-__domaren new-node)) state)
            new-node)))
       dom-node)))
 
 (defn maybe-deref [x]
   (cond-> x (satisfies? IDeref x) deref))
 
-(defn render-loop [f dom-node state]
+(defn render-loop! [f dom-node state]
   (js/requestAnimationFrame
    (fn tick []
      (try
        (let [current-node (.-firstChild dom-node)
-             new-node (render-component-fn current-node (maybe-deref f) (maybe-deref state))]
+             new-node (render-component-fn! current-node (maybe-deref f) (maybe-deref state))]
          (when-not (= new-node current-node)
            (set! (.-innerHTML dom-node) "")
            (.appendChild dom-node new-node)))
@@ -113,16 +128,16 @@
 (defn render-app [state]
   [:div#2.foo.bar {:title "FOO"}
    [:h1 (:text state)]
-   (for [i (range 3)]
-     [:span i])
+   (for [i (shuffle (range 3))]
+     (with-meta [:span i] {:key i}))
    [foo-component (* 5 (:count state))]
    [foo-component (* 5 (:count state))]
    [foo-component (* 2 (:count state))]
    [foo-component (* 2 (:count state))]])
 
-(render-loop #'render-app
-             (.getElementById js/document "app")
-             app-state)
+(render-loop! #'render-app
+              (.getElementById js/document "app")
+              app-state)
 
 (defn on-js-reload []
   (println "Forcing rerender")
