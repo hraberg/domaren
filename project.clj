@@ -20,11 +20,11 @@
 
   :cljsbuild {
     :builds [{:id "dev"
-              :source-paths ["src"]
+              :source-paths ["src" "dev"]
 
-              :figwheel { :on-jsload "domaren.core/on-js-reload" }
+              :figwheel { :on-jsload "domaren.core/refresh!" }
 
-              :compiler {:main domaren.core
+              :compiler {:main domaren.dev
                          :asset-path "js/compiled/out"
                          :output-to "resources/public/js/compiled/domaren.js"
                          :output-dir "resources/public/js/compiled/out"

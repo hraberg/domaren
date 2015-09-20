@@ -1,13 +1,8 @@
 (ns ^:figwheel-always domaren.core
     (:require [clojure.string :as s]))
 
-(enable-console-print!)
-
-(def DEBUG true)
-(def TIME true)
-
-(defonce request-refresh (atom false))
-(def ^:dynamic *refresh* false)
+(def DEBUG false)
+(def TIME false)
 
 ;; From https://github.com/weavejester/hiccup/blob/master/src/hiccup/compiler.clj
 (def ^{:doc "Regular expression that parses a CSS-style id and class from an element name."
@@ -126,12 +121,15 @@
     :else
     (text->dom! node (str hiccup))))
 
+(defn component-name [f]
+  (s/replace (.-name f) "$" "."))
+
+(defonce request-refresh (atom false))
+(def ^:dynamic *refresh* false)
+
 (defn should-component-update? [node state]
   (or (not= (some-> node .-__domaren .-state) state)
       *refresh*))
-
-(defn component-name [f]
-  (s/replace (.-name f) "$" "."))
 
 (defn component->dom! [node f & state]
   (let [state (vec state)
@@ -157,8 +155,7 @@
    (fn tick []
      (try
        (let [current-node (.-firstChild node)
-             new-node (binding [*refresh* @request-refresh]
-                        (reset! request-refresh false)
+             new-node (binding [*refresh* (compare-and-set! request-refresh true false)]
                         (component->dom! current-node (maybe-deref f) (maybe-deref state)))]
          (when-not (= new-node current-node)
            (doto node
@@ -170,31 +167,3 @@
 (defn refresh! []
   (.info js/console "refresh!")
   (reset! request-refresh true))
-
-(defonce app-state (atom {:text "Hello world!" :count 2}))
-
-(defn foo-component [count]
-  [:pre count])
-
-(defn render-app [state]
-  [:div#2.foo.bar {:title "FOO"}
-   [:h1 (:text state)]
-   (for [i (shuffle (range 3))]
-     (with-meta [:span i] {:key i}))
-   [foo-component (* 5 (:count state))]
-   [foo-component (* 5 (:count state))]
-   [foo-component (* 2 (:count state))]
-   [foo-component (* 2 (:count state))]
-   [foo-component (:count state)]])
-
-(render-loop! #'render-app
-              (.getElementById js/document "app")
-              app-state)
-
-(defn on-js-reload []
-  (refresh!))
-
-(comment
-  (do
-    (require 'figwheel-sidecar.repl-api)
-    (figwheel-sidecar.repl-api/cljs-repl)))
