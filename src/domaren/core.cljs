@@ -6,8 +6,8 @@
 (def DEBUG true)
 (def TIME true)
 
-(defonce app-state (atom {:text "Hello world!" :count 2}))
-(defonce force-rerender (atom false))
+(defonce request-refresh (atom false))
+(def ^:dynamic *refresh* false)
 
 ;; From https://github.com/weavejester/hiccup/blob/master/src/hiccup/compiler.clj
 (def ^{:doc "Regular expression that parses a CSS-style id and class from an element name."
@@ -128,7 +128,7 @@
 
 (defn should-component-update? [node state]
   (or (not= (some-> node .-__domaren .-state) state)
-      @force-rerender))
+      *refresh*))
 
 (defn component-name [f]
   (s/replace (.-name f) "$" "."))
@@ -157,14 +157,21 @@
    (fn tick []
      (try
        (let [current-node (.-firstChild node)
-             new-node (component->dom! current-node (maybe-deref f) (maybe-deref state))]
+             new-node (binding [*refresh* @request-refresh]
+                        (reset! request-refresh false)
+                        (component->dom! current-node (maybe-deref f) (maybe-deref state)))]
          (when-not (= new-node current-node)
            (doto node
              (aset "innerHTML" "")
              (.appendChild new-node))))
        (finally
-         (reset! force-rerender false)
          (js/requestAnimationFrame tick))))))
+
+(defn refresh! []
+  (.info js/console "refresh!")
+  (reset! request-refresh true))
+
+(defonce app-state (atom {:text "Hello world!" :count 2}))
 
 (defn foo-component [count]
   [:pre count])
@@ -185,8 +192,7 @@
               app-state)
 
 (defn on-js-reload []
-  (.info js/console "Forcing rerender")
-  (reset! force-rerender true))
+  (refresh!))
 
 (comment
   (do
