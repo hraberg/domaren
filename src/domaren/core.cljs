@@ -36,7 +36,7 @@
                     (let [element (.createElement js/document tag)]
                       (set! (.-__domaren element) #js {})
                       element))
-          key-map (or (some-> element .-__domaren .-keys) #js {})
+          key-map (or (-> element .-__domaren .-keys) #js {})
           new-key-map #js {}]
       (when-not (= (-> element .-__domaren .-hiccup) hiccup)
         (doseq [[k v] {"id" id "className" (s/join " " classes)}
