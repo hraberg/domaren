@@ -54,6 +54,39 @@
        :private true}
   re-tag #"([^\s\.#]+)(?:#([^\s\.#]+))?(?:\.([^\s#]+))?")
 
+(defn align-children! [node children]
+  (let [key-map (-> node .-__domaren .-keys)
+        new-key-map #js {}]
+    (loop [[h & hs] children child (.-firstChild node)]
+      (cond
+        (seq? h)
+        (recur (concat h hs) child)
+
+        h
+        (let [key (some-> h meta :key str)
+              old-child (some-> key-map (aget key))
+              child (if (and child old-child
+                             (not= child old-child))
+                      (do
+                        (.insertBefore node old-child child)
+                        old-child)
+                      child)
+              new-child (hiccup->dom! child h)]
+          (when key
+            (aset new-key-map key new-child))
+
+          (cond
+            (and child (not= child new-child))
+            (.replaceChild node new-child child)
+
+            (not child)
+            (.appendChild node new-child))
+          (recur hs (.-nextSibling new-child)))
+
+        :else
+        (remove-all-children-after! (some-> child .-previousSibling))))
+    (aset node "__domaren" "keys" new-key-map)))
+
 (defn html->dom! [node hiccup]
   (let [[tag & [attributes :as children]] hiccup
         [attributes children] (if (map? attributes)
@@ -66,46 +99,15 @@
         attributes (merge attributes {:id id :class class})
         handlers (event-handlers attributes)
         attributes (apply dissoc attributes (keys handlers))
-        node (create-element node tag)
-        key-map (-> node .-__domaren .-keys)
-        new-key-map #js {}]
+        node (create-element node tag)]
     (when (markup-changed? node hiccup)
       (doto node
         (add-properties! handlers)
         (add-attributes! attributes)
         (remove-attributes! (remove (set (map name (keys attributes)))
-                                    (node-attributes node))))
-      (loop [[h & hs] children child (.-firstChild node)]
-        (cond
-          (seq? h)
-          (recur (concat h hs) child)
-
-          h
-          (let [key (some-> h meta :key str)
-                old-child (some-> key-map (aget key))
-                child (if (and child old-child
-                               (not= child old-child))
-                        (do
-                          (.insertBefore node old-child child)
-                          old-child)
-                        child)
-                new-child (hiccup->dom! child h)]
-            (when key
-              (aset new-key-map key new-child))
-
-            (cond
-              (and child (not= child new-child))
-              (.replaceChild node new-child child)
-
-              (not child)
-              (.appendChild node new-child))
-            (recur hs (.-nextSibling new-child)))
-
-          :else
-          (remove-all-children-after! (some-> child .-previousSibling))))
-      (doto (.-__domaren node)
-        (aset "keys" new-key-map)
-        (aset "hiccup" hiccup)))
+                                    (node-attributes node)))
+        (align-children! children)
+        (aset "__domaren" "hiccup" hiccup)))
     node))
 
 (defn text-node? [node]
