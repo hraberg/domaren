@@ -24,6 +24,36 @@
 (defn component? [x]
   (and (vector? x) (fn? (first x))))
 
+(defn create-element [dom-node tag]
+  (if (= (s/upper-case tag) (some-> dom-node .-tagName))
+    dom-node
+    (let [element (.createElement js/document tag)]
+      (set! (.-__domaren element) #js {})
+      element)))
+
+(defn markup-changed? [dom-node hiccup]
+  (not= (-> dom-node .-__domaren .-hiccup) hiccup))
+
+(defn add-properties! [dom-node properties]
+  (doseq [[k v] properties
+          :when (not= (aget dom-node k) v)]
+    (aset dom-node k (or v ""))))
+
+(defn add-attributes! [dom-node attributes]
+  (doseq [[k v] attributes
+          :let [k (name k)]
+          :when (not= (.getAttribute dom-node k) v)]
+    (.setAttribute dom-node k (or v ""))))
+
+(defn remove-attributes! [dom-node attributes]
+  (doseq [k attributes]
+    (.removeAttribute dom-node k)))
+
+(defn remove-all-children-after! [dom-node]
+  (when dom-node
+    (while (.-nextSibling dom-node)
+      (.remove (.-nextSibling dom-node)))))
+
 (defn html->dom! [dom-node hiccup]
   (let [[tag & [attributes :as children]] hiccup
         [attributes children] (if (map? attributes)
@@ -31,24 +61,18 @@
                                 [{} children])
         [_ tag id class] (re-find re-tag (name tag))
         classes (s/split class ".")
-        element (if (= (s/upper-case tag) (some-> dom-node .-tagName))
-                  dom-node
-                  (let [element (.createElement js/document tag)]
-                    (set! (.-__domaren element) #js {})
-                    element))
-        key-map (or (-> element .-__domaren .-keys) #js {})
-        new-key-map #js {}]
-    (when-not (= (-> element .-__domaren .-hiccup) hiccup)
-      (doseq [[k v] {"id" id "className" (s/join " " classes)}
-              :when (not= (aget element k) v)]
-        (aset element k (or v "")))
-      (doseq [[k v] attributes
-              :let [k (name k)]
-              :when (not= (.getAttribute element k) v)]
-        (.setAttribute element k (or v "")))
-      (doseq [k (remove (into #{"id" "className"} (map name (keys attributes)))
-                        (node-attributes element))]
-        (.removeAttribute element k))
+        element (create-element dom-node tag)
+        key-map (-> element .-__domaren .-keys)
+        new-key-map #js {}
+        properties {"id" (or id (:id attributes))
+                    "className" (s/join " " (concat classes (:class attributes)))}]
+    (when (markup-changed? element hiccup)
+      (doto element
+        (add-properties! properties)
+        (add-attributes! attributes)
+        (remove-attributes! (->> element
+                                 node-attributes
+                                 (remove (set (map name (keys attributes)))))))
       (loop [[h & hs] children child (.-firstChild element)]
         (cond
           (seq? h)
@@ -56,7 +80,7 @@
 
           h
           (let [key (some-> h meta :key str)
-                old-child (aget key-map key)
+                old-child (some-> key-map (aget key))
                 child (if (and child old-child
                                (not= child old-child))
                         (do
@@ -66,6 +90,7 @@
                 new-child (hiccup->dom! child h)]
             (when key
               (aset new-key-map key new-child))
+
             (cond
               (and child (not= child new-child))
               (.replaceChild element new-child child)
@@ -75,9 +100,7 @@
             (recur hs (.-nextSibling new-child)))
 
           :else
-          (when-let [last-child (some-> child .-previousSibling)]
-            (while (.-nextSibling last-child)
-              (.remove (.-nextSibling last-child))))))
+          (remove-all-children-after! (some-> child .-previousSibling))))
       (set! (.-keys (.-__domaren element)) new-key-map)
       (set! (.-hiccup (.-__domaren element)) hiccup))
     element))
@@ -110,7 +133,7 @@
   (let [state (vec state)]
     (if (should-component-update? dom-node state)
       (time
-       (try
+       (do
          (println "Rendering Component" (.-name f) dom-node state)
          (let [new-node (hiccup->dom! dom-node (apply f state))]
            (set! (.-state (.-__domaren new-node)) state)
