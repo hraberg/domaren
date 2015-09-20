@@ -4,11 +4,6 @@
 (def DEBUG false)
 (def TIME false)
 
-;; From https://github.com/weavejester/hiccup/blob/master/src/hiccup/compiler.clj
-(def ^{:doc "Regular expression that parses a CSS-style id and class from an element name."
-       :private true}
-  re-tag #"([^\s\.#]+)(?:#([^\s\.#]+))?(?:\.([^\s#]+))?")
-
 (declare component->dom! hiccup->dom!)
 
 (defn node-attributes [node]
@@ -53,6 +48,11 @@
 
 (defn event-handlers [attributes]
   (into {} (filter (comp fn? val) attributes)))
+
+;; From https://github.com/weavejester/hiccup/blob/master/src/hiccup/compiler.clj
+(def ^{:doc "Regular expression that parses a CSS-style id and class from an element name."
+       :private true}
+  re-tag #"([^\s\.#]+)(?:#([^\s\.#]+))?(?:\.([^\s#]+))?")
 
 (defn html->dom! [node hiccup]
   (let [[tag & [attributes :as children]] hiccup
