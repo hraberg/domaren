@@ -74,7 +74,7 @@
    [:div.view
     [:input.toggle {:type "checkbox" :checked done
                     :onchange #(toggle id)}]
-    [:label {:onclick #(swap! todos assoc-in [id :editing] true)} title]
+    [:label {:ondblclick #(swap! todos assoc-in [id :editing] true)} title]
     [:button.destroy {:onclick #(delete id)}]]
    (when editing
      [todo-edit {:class "edit" :title title
