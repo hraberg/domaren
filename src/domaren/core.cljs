@@ -92,13 +92,15 @@
                                 [{} children])
         [_ tag id class] (re-find re-tag (name tag))
         class (->> (:class attributes)
-                   (concat (s/split class "."))
+                   (conj (s/split class #"\."))
                    (s/join " "))
+        id (attributes :id id)
         handlers (event-handlers attributes)
+        properties (select-keys attributes [:value :type :checked])
         attributes (merge (apply dissoc attributes (keys handlers))
                           {:id id :class class})]
     (doto (create-element node tag)
-      (add-properties! handlers)
+      (add-properties! (merge properties handlers))
       (add-attributes! attributes)
       (keep-attributes! (set (map name (keys attributes))))
       (align-children! children))))
@@ -124,7 +126,7 @@
     (text->dom! node (str hiccup))))
 
 (defn component-name [f]
-  (s/replace (.-name f) "$" "."))
+  (s/replace (or (.-name f) "<anonymous>") "$" "."))
 
 (defonce request-refresh (atom false))
 (def ^:dynamic *refresh* false)
@@ -164,14 +166,14 @@
 (defn maybe-deref [x]
   (cond-> x (satisfies? IDeref x) deref))
 
-(defn render! [node f state]
+(defn render! [node f & state]
   (js/requestAnimationFrame
    (fn tick []
      (binding [*refresh* (compare-and-set! request-refresh true false)
                *mounted-nodes* (atom [])]
        (try
          (let [current-node (.-firstChild node)
-               new-node (component->dom! current-node {} (maybe-deref f) (maybe-deref state))]
+               new-node (apply component->dom! current-node {} (maybe-deref f) (map maybe-deref state))]
            (when-not (= new-node current-node)
              (doto node
                (aset "innerHTML" "")
