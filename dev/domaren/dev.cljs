@@ -114,11 +114,6 @@
  #'todo-app
  todos filt value)
 
-;; (enable-console-print!)
-
-;; (set! domaren.core/DEBUG true)
-;; (set! domaren.core/TIME true)
-
 ;; (defonce app-state (atom {:text "Hello world!" :count 2}))
 
 ;; (defn foo-component [count f]
