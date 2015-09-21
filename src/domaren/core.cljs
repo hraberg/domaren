@@ -2,7 +2,8 @@
     (:require [clojure.string :as s]))
 
 (def DEBUG false)
-(def TIME false)
+(def TIME_COMPONENTS false)
+(def TIME_FRAME false)
 
 (declare component->dom! hiccup->dom!)
 
@@ -148,10 +149,11 @@
 
 (defn component->dom! [node opts f & state]
   (let [state (vec state)
-        component-name (component-name f)]
+        component-name (component-name f)
+        time? (or TIME_COMPONENTS (and (:root opts) TIME_FRAME))]
     (if (should-component-update? node state)
       (try
-        (when TIME
+        (when time?
           (.time js/console component-name))
         (when DEBUG
           (.debug js/console component-name node (s/trim (pr-str state))))
@@ -159,7 +161,7 @@
           (aset "__domaren" "state" state)
           (component-callbacks! opts state))
         (finally
-          (when TIME
+          (when time?
             (.timeEnd js/console component-name))))
       node)))
 
@@ -173,7 +175,7 @@
                *mounted-nodes* (atom [])]
        (try
          (let [current-node (.-firstChild node)
-               new-node (apply component->dom! current-node {} (maybe-deref f) (map maybe-deref state))]
+               new-node (apply component->dom! current-node {:root true} (maybe-deref f) (map maybe-deref state))]
            (when-not (= new-node current-node)
              (doto node
                (aset "innerHTML" "")

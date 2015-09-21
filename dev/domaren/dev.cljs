@@ -5,15 +5,17 @@
 
 (enable-console-print!)
 
-(set! domaren.core/DEBUG true)
-(set! domaren.core/TIME true)
+(set! domaren.core/DEBUG false)
+(set! domaren.core/TIME_COMPONENTS false)
+(set! domaren.core/TIME_FRAME true)
 
 (defonce todos (atom (sorted-map)))
 (defonce filt (atom :all))
 (defonce value (atom ""))
+(defonce counter (atom 0))
 
 (defn add-todo [text]
-  (let [id (random-uuid)]
+  (let [id (swap! counter inc)]
     (swap! todos assoc id {:id id :title text :done false :editing false})))
 
 (defn toggle [id] (swap! todos update-in [id :done] not))
@@ -21,8 +23,8 @@
 (defn delete [id] (swap! todos dissoc id))
 
 (defn mmap [m f a] (->> m (f a) (into (empty m))))
-(defn complete-all [v] (swap! todos mmap  map #(assoc-in % [1 :done] v)))
-(defn clear-done [] (swap! todos mmap (remove #(get-in % [1 :done]))))
+(defn complete-all [v] (swap! todos mmap map #(assoc-in % [1 :done] v)))
+(defn clear-done [] (swap! todos mmap remove #(get-in % [1 :done])))
 
 (defonce init (do
                 (add-todo "Rename Cloact to Reagent")
