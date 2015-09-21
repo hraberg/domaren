@@ -34,9 +34,9 @@
                 (complete-all true)))
 
 (defn todo-input [{:keys [id title class placeholder onsave onstop val]}]
-  (let [stop #(do (reset! domaren.dev/value "")
+  (let [stop #(do (reset! value "")
                   (if onstop (onstop)))
-        save #(let [v (-> val str clojure.string/trim)]
+        save #(let [v (-> % .-target .-value str clojure.string/trim)]
                 (if-not (empty? v) (onsave v))
                 (stop))]
     [:input {:title title
@@ -44,9 +44,9 @@
              :class class
              :placeholder placeholder
              :type "text" :value val :onblur save
-             :onchange #(reset! domaren.dev/value (-> % .-target .-value))
+             :onchange #(reset! value (-> % .-target .-value))
              :onkeydown #(case (.-which %)
-                           13 (save)
+                           13 (save %)
                            27 (stop)
                            nil)}]))
 
@@ -80,7 +80,7 @@
      [todo-edit {:class "edit" :title title
                  :onsave #(save id %)
                  :onstop #(swap! todos assoc-in [id :editing] false)
-                 :val val}])])
+                 :val title}])])
 
 (defn todo-app [todos filt val]
   (let [items (vals todos)
