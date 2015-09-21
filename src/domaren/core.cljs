@@ -126,8 +126,10 @@
     :else
     (text->dom! node (str hiccup))))
 
+(def re-component-name #"\$")
+
 (defn component-name [f]
-  (s/replace (or (.-name f) "<anonymous>") "$" "."))
+  (s/replace (or (.-name f) "<anonymous>") re-component-name "."))
 
 (defonce request-refresh (atom false))
 (def ^:dynamic *refresh* false)
