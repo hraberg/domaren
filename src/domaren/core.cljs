@@ -150,21 +150,22 @@
       (swap! *mounted-nodes* conj (fn [] (apply did-mount node state))))))
 
 (defn component->dom! [node opts f & state]
-  (let [state (vec state)
-        component-name (component-name f)
-        time? (or TIME_COMPONENTS (and (:root opts) TIME_FRAME))]
+  (let [state (vec state)]
     (if (should-component-update? node state)
-      (try
-        (when time?
-          (.time js/console component-name))
-        (when DEBUG
-          (.debug js/console component-name node (s/trim (pr-str state))))
-        (doto (hiccup->dom! node (apply f state))
-          (aset "__domaren" "state" state)
-          (component-callbacks! opts state))
-        (finally
+      (let [component-name (component-name f)
+            time? (or TIME_COMPONENTS (and (:root opts) TIME_FRAME))
+            opts (merge (meta f) opts)]
+        (try
           (when time?
-            (.timeEnd js/console component-name))))
+            (.time js/console component-name))
+          (when DEBUG
+            (.debug js/console component-name node (s/trim (pr-str state))))
+          (doto (hiccup->dom! node (apply f state))
+            (aset "__domaren" "state" state)
+            (component-callbacks! opts state))
+          (finally
+            (when time?
+              (.timeEnd js/console component-name)))))
       node)))
 
 (defn maybe-deref [x]
