@@ -93,7 +93,7 @@
        [todo-input {:id "new-todo"
                     :placeholder "What needs to be done?"
                     :onsave add-todo
-                    :val val}]]
+                    :val ""}]]
       (when (-> items count pos?)
         [:div
          [:section#main

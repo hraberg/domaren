@@ -134,8 +134,11 @@
 (defonce request-refresh (atom false))
 (def ^:dynamic *refresh* false)
 
+(defn component-state [node]
+  (some-> node .-__domaren .-state))
+
 (defn should-component-update? [node state]
-  (or (not= (some-> node .-__domaren .-state) state)
+  (or (not= (component-state node) state)
       *refresh*))
 
 (defn component-will-mount? [node]
@@ -143,11 +146,15 @@
 
 (def ^:dynamic *mounted-nodes*)
 
-(defn component-callbacks! [node {:keys [did-mount will-mount]} state]
-  (when (component-will-mount? node)
-    (some-> will-mount (apply node state))
-    (when did-mount
-      (swap! *mounted-nodes* conj (fn [] (apply did-mount node state))))))
+;; See https://facebook.github.io/react/docs/component-specs.html
+;; These callbacks are a subset and don't work exactly the same way.
+(defn component-callbacks! [node {:keys [did-mount will-mount did-update]} previous-state state]
+  (if (component-will-mount? node)
+    (do
+      (some-> will-mount (apply node state))
+      (when did-mount
+        (swap! *mounted-nodes* conj (fn [] (apply did-mount node state)))))
+    (some-> did-update (apply node previous-state state))))
 
 (defn component->dom! [node opts f & state]
   (let [state (vec state)]
@@ -161,8 +168,8 @@
           (when DEBUG
             (.debug js/console component-name node (s/trim (pr-str state))))
           (doto (hiccup->dom! node (apply f state))
-            (aset "__domaren" "state" state)
-            (component-callbacks! opts state))
+            (component-callbacks! opts (component-state node) state)
+            (aset "__domaren" "state" state))
           (finally
             (when time?
               (.timeEnd js/console component-name)))))
