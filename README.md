@@ -1,6 +1,10 @@
-# domaren
+# Domaren
 
-ClojureScript [incremental-dom](google.github.io/incremental-dom) style library.
+*Domaren dömer (the judge judges)*
+-- Ancient Swedish proverb
+
+### ClojureScript [incremental-dom](google.github.io/incremental-dom) style library.
+
 
 ## Overview
 

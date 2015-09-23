@@ -1,6 +1,6 @@
 (defproject domaren "0.1.0-SNAPSHOT"
-  :description "FIXME: write this!"
-  :url "http://example.com/FIXME"
+  :description "Domaren is a ClojureScript incremental-dom style library."
+  :url "http://hraberg.github.io/domaren/"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
 
