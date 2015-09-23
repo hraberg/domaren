@@ -126,19 +126,23 @@
     :else
     (text->dom! node (str hiccup))))
 
+(defonce request-refresh (atom false))
+(def ^:dynamic *refresh* false)
+
 (def re-component-name #"\$")
 
 (defn component-name [f]
   (s/replace (or (.-name f) "<anonymous>") re-component-name "."))
 
-(defonce request-refresh (atom false))
-(def ^:dynamic *refresh* false)
+(defn component-fn [node]
+  (some-> node .-__domaren .-component))
 
 (defn component-state [node]
   (some-> node .-__domaren .-state))
 
-(defn should-component-update? [node state]
-  (or (not= (component-state node) state)
+(defn should-component-update? [node f state]
+  (or (not (and (= (component-fn node) f)
+                (= (component-state node) state)))
       *refresh*))
 
 (defn component-will-mount? [node]
@@ -158,10 +162,10 @@
 
 (defn component->dom! [node opts f & state]
   (let [state (vec state)]
-    (if (should-component-update? node state)
-      (let [component-name (component-name f)
-            time? (or TIME_COMPONENTS (and (:root opts) TIME_FRAME))
-            opts (merge (meta f) opts)]
+    (if (should-component-update? node f state)
+      (let [time? (or TIME_COMPONENTS (and (:root opts) TIME_FRAME))
+            opts (merge (meta f) opts)
+            component-name (component-name f)]
         (try
           (when time?
             (.time js/console component-name))
@@ -169,6 +173,7 @@
             (.debug js/console component-name node (s/trim (pr-str state))))
           (doto (hiccup->dom! node (apply f state))
             (component-callbacks! opts (component-state node) state)
+            (aset "__domaren" "component" f)
             (aset "__domaren" "state" state))
           (finally
             (when time?
