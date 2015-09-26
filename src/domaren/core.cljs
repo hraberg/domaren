@@ -66,9 +66,7 @@
               old-child (some-> key-map (aget key))
               child (if (and child old-child
                              (not= child old-child))
-                      (do
-                        (.insertBefore node old-child child)
-                        old-child)
+                      (.insertBefore node old-child child)
                       child)
               new-child (hiccup->dom! child h)]
           (when key
