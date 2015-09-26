@@ -165,7 +165,9 @@
     (if (should-component-update? node f state)
       (let [time? (or TIME_COMPONENTS (and (:root opts) TIME_FRAME))
             opts (merge (meta f) opts)
-            component-name (component-name f)]
+            component-name (component-name f)
+            node (when (= f (component-fn node))
+                   node)]
         (try
           (when time?
             (.time js/console component-name))
