@@ -41,9 +41,11 @@
           :when (not (keep-attribute? k))]
     (.removeAttribute node k)))
 
-(defn remove-all-children-after! [node]
-  (while (some-> node .-nextSibling)
-    (.remove (.-nextSibling node))))
+(defn remove-children-starting-at! [node]
+  (when node
+    (while (.-nextSibling node)
+      (.remove (.-nextSibling node)))
+    (.remove node)))
 
 (defn event-handlers [attributes]
   (into {} (filter (comp fn? val) attributes)))
@@ -81,7 +83,7 @@
           (recur hs (.-nextSibling new-child)))
 
         :else
-        (remove-all-children-after! (some-> child .-previousSibling))))
+        (remove-children-starting-at! child)))
     (aset node "__domaren" "keys" new-key-map)))
 
 (defn html->dom! [node hiccup]
