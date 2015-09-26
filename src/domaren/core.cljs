@@ -138,9 +138,8 @@
 (defn component-state [node]
   (some-> node .-__domaren .-state))
 
-(defn should-component-update? [node f state]
-  (or (not (and (= (component-fn node) f)
-                (= (component-state node) state)))
+(defn should-component-update? [node state]
+  (or (not (and node (= (component-state node) state)))
       *refresh*))
 
 (defn component-will-mount? [node]
@@ -159,13 +158,13 @@
     (some-> did-update (apply node previous-state state))))
 
 (defn component->dom! [node opts f & state]
-  (let [state (vec state)]
-    (if (should-component-update? node f state)
+  (let [node (when (= f (component-fn node))
+               node)
+        state (vec state)]
+    (if (should-component-update? node state)
       (let [time? (or TIME_COMPONENTS (and (:root opts) TIME_FRAME))
             opts (merge (meta f) opts)
-            component-name (component-name f)
-            node (when (= f (component-fn node))
-                   node)]
+            component-name (component-name f)]
         (try
           (when time?
             (.time js/console component-name))
