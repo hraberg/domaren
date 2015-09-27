@@ -22,7 +22,7 @@
                                                           {} @todos))))))
 (defonce filt (atom :all))
 (defonce value (atom ""))
-(defonce counter (atom 0))
+(defonce counter (atom (or (some-> @todos last key) 0)))
 
 (defn add-todo [text]
   (let [id (swap! counter inc)]
@@ -55,11 +55,9 @@
     [:input {:class class
              :placeholder placeholder
              :type "text" :value value :onblur (if onstop stop save)
+             :autofocus true
              :oninput #(-> % .-target .-value edited-value)
              :onkeydown #(some-> % .-which keymap (apply []))}]))
-
-(def todo-edit (with-meta todo-input
-                 {:did-mount #(.focus %)}))
 
 (defn todo-stats [{:keys [filt active completed]}]
   (let [props-for (fn [x]
@@ -85,10 +83,11 @@
     [:label {:ondblclick #(start-edit id title)} title]
     [:button.destroy {:onclick #(delete id)}]]
    (when editing
-     [todo-edit {:class "edit"
-                 :onsave #(save id %)
-                 :onstop #(stop-edit id)
-                 :value value}])])
+     ^{:did-mount #(.focus %)}
+     [todo-input {:class "edit"
+                  :onsave #(save id %)
+                  :onstop #(stop-edit id)
+                  :value value}])])
 
 (defn todo-app [todos filt value]
   (let [items (vals todos)
