@@ -28,7 +28,7 @@
                          :asset-path "js/compiled/out"
                          :output-to "resources/public/js/compiled/domaren.js"
                          :output-dir "resources/public/js/compiled/out"
-                         :source-map-timestamp true }}
+                         :source-map-timestamp true}}
              {:id "min"
               :source-paths ["src"]
               :compiler {:output-to "resources/public/js/compiled/domaren.js"
