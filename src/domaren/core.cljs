@@ -28,11 +28,11 @@
               (.cloneNode false))
       (aset "__domaren" #js {}))))
 
-(defn add-properties! [node properties]
+(defn set-properties! [node properties]
   (doseq [[k v] properties
           :let [k (name k)]
           :when (not= (aget node k) v)]
-    (aset node k (or v ""))))
+    (aset node k v)))
 
 (defn add-attributes! [node attributes]
   (doseq [[k v] attributes
@@ -102,12 +102,13 @@
         id (attributes :id id)
         handlers (event-handlers attributes)
         form-properties (select-keys attributes [:value :checked :selected])
-        attributes (merge (apply dissoc attributes (keys handlers))
+        properties (merge form-properties handlers)
+        attributes (merge (apply dissoc attributes (keys properties))
                           {:id id :class class})]
     (doto (create-element node tag)
-      (add-properties! (merge form-properties handlers))
       (add-attributes! attributes)
       (keep-attributes! (set (map name (keys attributes))))
+      (set-properties! properties)
       (align-children! children))))
 
 (defn text-node? [node]

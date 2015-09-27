@@ -33,20 +33,18 @@
                 (add-todo "Allow any arguments to component functions")
                 (complete-all true)))
 
-(defn todo-input [{:keys [id title class placeholder onsave onstop val]}]
+(defn todo-input [{:keys [id class placeholder onsave onstop val]}]
   (let [stop #(do (reset! value "")
                   (if onstop (onstop)))
-        save #(let [v (-> % .-target .-value str clojure.string/trim)]
-                (if-not (empty? v) (onsave v))
-                (stop))]
-    [:input {:title title
-             :id id
+        save #(do (if-not (empty? val) (onsave val))
+                  (stop))]
+    [:input {:id id
              :class class
              :placeholder placeholder
-             :type "text" :value val :onblur save
-             :onchange #(reset! value (-> % .-target .-value))
+             :type "text" :value val :onblur (if-not onstop save stop)
+             :oninput #(reset! value (-> % .-target .-value))
              :onkeydown #(case (.-which %)
-                           13 (save %)
+                           13 (save)
                            27 (stop)
                            nil)}]))
 
@@ -74,13 +72,15 @@
    [:div.view
     [:input.toggle {:type "checkbox" :checked done
                     :onchange #(toggle id)}]
-    [:label {:ondblclick #(swap! todos assoc-in [id :editing] true)} title]
+    [:label {:ondblclick (fn []
+                           (swap! todos assoc-in [id :editing] true)
+                           (reset! value title))} title]
     [:button.destroy {:onclick #(delete id)}]]
    (when editing
-     [todo-edit {:class "edit" :title title
+     [todo-edit {:class "edit"
                  :onsave #(save id %)
                  :onstop #(swap! todos assoc-in [id :editing] false)
-                 :val title}])])
+                 :val val}])])
 
 (defn todo-app [todos filt val]
   (let [items (vals todos)
@@ -93,7 +93,8 @@
        [todo-input {:id "new-todo"
                     :placeholder "What needs to be done?"
                     :onsave add-todo
-                    :val ""}]]
+                    :val (when-not (some :editing items)
+                           val)}]]
       (when (seq items)
         [:div
          [:section#main
