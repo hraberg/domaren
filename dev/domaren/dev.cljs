@@ -21,6 +21,13 @@
 (defn toggle [id] (swap! todos update-in [id :done] not))
 (defn save [id title] (swap! todos assoc-in [id :title] title))
 (defn delete [id] (swap! todos dissoc id))
+(defn edited-value [v] (reset! value v))
+(defn start-edit [id title]
+  (edited-value title)
+  (swap! todos assoc-in [id :editing] true))
+(defn stop-edit [id]
+  (swap! todos assoc-in [id :editing] false))
+(defn select-filter [name] (reset! filt name))
 
 (defn mmap [m f a] (->> m (f a) (into (empty m))))
 (defn complete-all [v] (swap! todos mmap map #(assoc-in % [1 :done] v)))
@@ -33,20 +40,21 @@
                 (add-todo "Allow any arguments to component functions")
                 (complete-all true)))
 
+(def KEYS {:enter 13 :esc 27})
+
 (defn todo-input [{:keys [id class placeholder onsave onstop val]}]
-  (let [stop #(do (reset! value "")
+  (let [stop #(do (edited-value "")
                   (if onstop (onstop)))
         save #(do (if-not (empty? val) (onsave val))
-                  (stop))]
+                  (stop))
+        keymap {(:enter KEYS) save
+                (:esc KEYS) stop}]
     [:input {:id id
              :class class
              :placeholder placeholder
-             :type "text" :value val :onblur (if-not onstop save stop)
-             :oninput #(reset! value (-> % .-target .-value))
-             :onkeydown #(case (.-which %)
-                           13 (save)
-                           27 (stop)
-                           nil)}]))
+             :type "text" :value val :onblur (if onstop stop save)
+             :oninput #(-> % .-target .-value edited-value)
+             :onkeydown #(some-> % .-which keymap (apply []))}]))
 
 (def todo-edit (with-meta todo-input
                  {:did-mount #(.focus %)}))
@@ -54,7 +62,7 @@
 (defn todo-stats [{:keys [filt active done]}]
   (let [props-for (fn [name]
                     {:class (if (= name filt) "selected")
-                     :onclick #(reset! domaren.dev/filt name)})]
+                     :onclick #(select-filter name)})]
     [:div
      [:span#todo-count
       [:strong active] " " (case active 1 "item" "items") " left"]
@@ -72,14 +80,12 @@
    [:div.view
     [:input.toggle {:type "checkbox" :checked done
                     :onchange #(toggle id)}]
-    [:label {:ondblclick (fn []
-                           (swap! todos assoc-in [id :editing] true)
-                           (reset! value title))} title]
+    [:label {:ondblclick #(start-edit id title)} title]
     [:button.destroy {:onclick #(delete id)}]]
    (when editing
      [todo-edit {:class "edit"
                  :onsave #(save id %)
-                 :onstop #(swap! todos assoc-in [id :editing] false)
+                 :onstop #(stop-edit id)
                  :val val}])])
 
 (defn todo-app [todos filt val]
@@ -116,35 +122,3 @@
  (.getElementById js/document "app")
  #'todo-app
  todos filt value)
-
-;; (defonce app-state (atom {:text "Hello world!" :count 2}))
-
-;; (defn foo-component [count f]
-;;   [:pre {:onclick (fn [evt] (when f (f evt)))} count])
-
-;; (defn render-app [state]
-;;   [:div#2.foo.bar {:title "FOO"}
-;;    [:h1 (:text state)]
-;;    (for [i (shuffle (range 3))]
-;;      ^{:key i} [:span i])
-;;    ^{:will-mount (fn [node count]
-;;                    (.debug js/console "Will Mount" node (.-parentNode node) (pr-str count)))}
-;;    [foo-component (* 5 (:count state))]
-;;    [foo-component (* 5 (:count state))]
-;;    [foo-component (* 2 (:count state))]
-;;    [foo-component (* 2 (:count state)) (fn [evt] (js/alert "!"))]
-;;    ^{:did-mount (fn [node count]
-;;                   (.debug js/console "Did Mount" node (.-parentNode node)  (pr-str count)))}
-;;    [foo-component (:count state)]])
-
-;; (domaren.core/render!
-;;  (.getElementById js/document "app")
-;;  #'render-app
-;;  app-state)
-
-;; (comment
-;;   (do
-;;     (require 'figwheel-sidecar.repl-api)
-;;     (figwheel-sidecar.repl-api/cljs-repl))
-
-;;   (reset! app-state {:text "Hello", :count 3}))
