@@ -209,7 +209,7 @@
                          (reset! tick-requested? true)
                          (js/requestAnimationFrame tick))]
     (doseq [w (filter #(satisfies? IWatchable %) state)]
-      (-add-watch w :tick request-tick!))
+      (-add-watch w ::tick request-tick!))
     (request-tick!)))
 
 (defn refresh! []
