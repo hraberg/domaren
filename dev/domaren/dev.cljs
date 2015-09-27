@@ -50,15 +50,14 @@
 
 (def KEYS {:enter 13 :esc 27})
 
-(defn todo-input [{:keys [id class placeholder onsave onstop value]}]
+(defn todo-input [{:keys [class placeholder onsave onstop value]}]
   (let [stop #(do (edited-value "")
                   (if onstop (onstop)))
         save #(do (if-not (empty? value) (onsave value))
                   (stop))
         keymap {(:enter KEYS) save
                 (:esc KEYS) stop}]
-    [:input {:id id
-             :class class
+    [:input {:class class
              :placeholder placeholder
              :type "text" :value value :onblur (if onstop stop save)
              :oninput #(-> % .-target .-value edited-value)
@@ -72,14 +71,14 @@
                     {:class (if (= x filt) "selected")
                      :href (str "#/" (name x))})]
     [:div
-     [:span#todo-count
+     [:span.todo-count
       [:strong active] " " (case active 1 "item" "items") " left"]
-     [:ul#filters
+     [:ul.filters
       [:li [:a (props-for :all) "All"]]
       [:li [:a (props-for :active) "Active"]]
       [:li [:a (props-for :done) "Completed"]]]
      (when (pos? done)
-       [:button#clear-completed {:onclick clear-done}
+       [:button.clear-completed {:onclick clear-done}
         "Clear completed " done])]))
 
 (defn todo-item [{:keys [editing id done title]} value]
@@ -101,29 +100,29 @@
         done (->> items (filter :done) count)
         active (- (count items) done)]
     [:div
-     [:section#todoapp
-      [:header#header
+     [:section.todoapp
+      [:header.header
        [:h1 "todos"]
-       [todo-input {:id "new-todo"
+       [todo-input {:class "new-todo"
                     :placeholder "What needs to be done?"
                     :onsave add-todo
                     :value (when-not (some :editing items)
                              value)}]]
       (when (seq items)
         [:div
-         [:section#main
-          [:input#toggle-all {:type "checkbox" :checked (zero? active)
+         [:section.main
+          [:input.toggle-all {:type "checkbox" :checked (zero? active)
                               :onchange #(complete-all (pos? active))}]
           [:label {:for "toggle-all"} "Mark all as complete"]
-          [:ul#todo-list
+          [:ul.todo-list
            (for [todo (filter (case filt
                                 :active (complement :done)
                                 :done :done
                                 :all identity) items)]
              ^{:key (:id todo)} [todo-item todo value])]]
-         [:footer#footer
+         [:footer.footer
           [todo-stats {:active active :done done :filt filt}]]])]
-     [:footer#info
+     [:footer.info
       [:p "Double-click to edit a todo"]]]))
 
 (domaren.core/render!
