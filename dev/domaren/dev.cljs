@@ -21,9 +21,11 @@
                                        (pr-str (reduce-kv (fn [m k v]
                                                             (assoc m k (dissoc v :editing)))
                                                           {} @todos))))))
-(def filters [:all :active :completed])
+(def filters (array-map :all identity
+                        :active (complement :completed)
+                        :completed :completed))
 
-(defonce filt (atom (first filters)))
+(defonce filt (atom (key (first filters))))
 (defonce value (atom ""))
 (defonce counter (atom (or (some-> @todos last key) 0)))
 
@@ -67,7 +69,7 @@
    [:span.todo-count
     [:strong active] " " (case active 1 "item" "items") " left"]
    [:ul.filters
-    (for [f filters]
+    (for [f (keys filters)]
       [:li [:a {:class (if (= f filt) "selected")
                 :href (str "#/" (name f))}
             (s/capitalize (name f))]])]
@@ -110,10 +112,7 @@
                               :onchange #(complete-all (pos? active))}]
           [:label {:for "toggle-all"} "Mark all as complete"]
           [:ul.todo-list
-           (for [todo (filter (case filt
-                                :active (complement :completed)
-                                :completed :completed
-                                :all identity) items)]
+           (for [todo (filter (filters filt) items)]
              ^{:key (:id todo)} [todo-item todo value])]]
          [:footer.footer
           [todo-stats {:active active :completed completed :filt filt}]]])]
@@ -122,9 +121,9 @@
       [:p "Created by Håkan Råberg"]]]))
 
 (defn on-hashchange []
-  (let [hash (some-> js/location .-hash (subs 2))]
-    (if-let [f ((set filters) (keyword hash))]
-      (select-filter f)
+  (let [hash (some-> js/location .-hash (subs 2) keyword)]
+    (if (filters hash)
+      (select-filter hash)
       (aset js/location "hash" (str "/" (name @filt))))))
 
 (.addEventListener js/window "hashchange" on-hashchange)
