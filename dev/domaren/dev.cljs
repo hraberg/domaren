@@ -1,5 +1,6 @@
 (ns ^:figwheel-always domaren.dev
-    (:require [domaren.core]))
+    (:require [cljs.reader :as r]
+              [domaren.core]))
 
 ;; Based on https://github.com/reagent-project/reagent/blob/master/examples/todomvc/src/todomvc/core.cljs
 
@@ -9,10 +10,17 @@
 (set! domaren.core/TIME_COMPONENTS false)
 (set! domaren.core/TIME_FRAME true)
 
-(defonce todos (atom (sorted-map)))
+(defonce todos (-add-watch (atom (into (sorted-map)
+                                       (some->> "todos"
+                                                (aget js/localStorage)
+                                                r/read-string)))
+                           :storage
+                           (fn [_ _ newval]
+                             (aset js/localStorage "todos" (pr-str @todos)))))
 (defonce filt (atom :all))
 (defonce value (atom ""))
 (defonce counter (atom 0))
+
 
 (defn add-todo [text]
   (let [id (swap! counter inc)]
@@ -33,7 +41,7 @@
 (defn complete-all [v] (swap! todos mmap map #(assoc-in % [1 :done] v)))
 (defn clear-done [] (swap! todos mmap remove #(get-in % [1 :done])))
 
-(defonce init (do
+(defonce init (when-not (aget js/localStorage "todos")
                 (add-todo "Rename Cloact to Reagent")
                 (add-todo "Add undo demo")
                 (add-todo "Make all rendering async")
@@ -60,9 +68,9 @@
                  {:did-mount #(.focus %)}))
 
 (defn todo-stats [{:keys [filt active done]}]
-  (let [props-for (fn [name]
-                    {:class (if (= name filt) "selected")
-                     :onclick #(select-filter name)})]
+  (let [props-for (fn [x]
+                    {:class (if (= x filt) "selected")
+                     :href (str "#" (name x))})]
     [:div
      [:span#todo-count
       [:strong active] " " (case active 1 "item" "items") " left"]
@@ -122,3 +130,13 @@
  (.getElementById js/document "app")
  #'todo-app
  todos filt value)
+
+(defn on-hashchange []
+  (let [location (.-location js/document)
+        hash (some-> location .-hash (subs 1))]
+    (if (seq hash)
+      (select-filter (keyword hash))
+      (aset location "hash" (name @filt)))))
+
+(.addEventListener js/window "hashchange" on-hashchange)
+(on-hashchange)
