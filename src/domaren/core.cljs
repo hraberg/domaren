@@ -101,11 +101,11 @@
                    (s/join " "))
         id (attributes :id id)
         handlers (event-handlers attributes)
-        properties (select-keys attributes [:value :type :checked])
+        form-properties (select-keys attributes [:value :checked :selected])
         attributes (merge (apply dissoc attributes (keys handlers))
                           {:id id :class class})]
     (doto (create-element node tag)
-      (add-properties! (merge properties handlers))
+      (add-properties! (merge form-properties handlers))
       (add-attributes! attributes)
       (keep-attributes! (set (map name (keys attributes))))
       (align-children! children))))
