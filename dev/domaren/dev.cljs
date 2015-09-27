@@ -11,19 +11,22 @@
 (set! domaren.core/TIME_FRAME true)
 
 (defonce todos (-add-watch (atom (into (sorted-map)
-                                       (some->> "todos"
-                                                (aget js/localStorage)
+                                       (some->> "todos-domaren"
+                                                (.getItem js/localStorage)
                                                 r/read-string)))
                            :storage
                            (fn [_ _ newval]
-                             (aset js/localStorage "todos" (pr-str @todos)))))
+                             (.setItem js/localStorage "todos-domaren"
+                                       (pr-str (reduce-kv (fn [m k v]
+                                                            (assoc m k (dissoc v :editing)))
+                                                          {} @todos))))))
 (defonce filt (atom :all))
 (defonce value (atom ""))
 (defonce counter (atom 0))
 
 (defn add-todo [text]
   (let [id (swap! counter inc)]
-    (swap! todos assoc id {:id id :title text :completed false :editing false})))
+    (swap! todos assoc id {:id id :title text :completed false})))
 
 (defn toggle [id] (swap! todos update-in [id :completed] not))
 (defn save [id title] (swap! todos assoc-in [id :title] title))
@@ -33,19 +36,12 @@
   (edited-value title)
   (swap! todos assoc-in [id :editing] true))
 (defn stop-edit [id]
-  (swap! todos assoc-in [id :editing] false))
+  (swap! todos update-in [id] dissoc :editing))
 (defn select-filter [name] (reset! filt name))
 
 (defn mmap [m f a] (->> m (f a) (into (empty m))))
 (defn complete-all [v] (swap! todos mmap map #(assoc-in % [1 :completed] v)))
 (defn clear-completed [] (swap! todos mmap remove #(get-in % [1 :completed])))
-
-(defonce init (when-not (aget js/localStorage "todos")
-                (add-todo "Rename Cloact to Reagent")
-                (add-todo "Add undo demo")
-                (add-todo "Make all rendering async")
-                (add-todo "Allow any arguments to component functions")
-                (complete-all true)))
 
 (def KEYS {:enter 13 :esc 27})
 
@@ -122,7 +118,8 @@
          [:footer.footer
           [todo-stats {:active active :completed completed :filt filt}]]])]
      [:footer.info
-      [:p "Double-click to edit a todo"]]]))
+      [:p "Double-click to edit a todo"]
+      [:p "Created by Håkan Råberg"]]]))
 
 (domaren.core/render!
  (.getElementById js/document "app")
