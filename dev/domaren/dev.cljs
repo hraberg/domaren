@@ -34,14 +34,13 @@
     (swap! todos assoc id {:id id :title title :completed false})))
 
 (defn toggle [id] (swap! todos update-in [id :completed] not))
-(defn save [id title] (when (= (:id @edited-todo) id)
-                        (swap! todos assoc-in [id :title] title)))
+(defn save [{:keys [id] :as todo}]
+  (when (= todo @edited-todo)
+    (swap! todos assoc id todo)))
 (defn delete [id] (swap! todos dissoc id))
-(defn edit-title [v] (swap! edited-todo assoc :title  v))
-(defn start-edit [id]
-  (reset! edited-todo (@todos id)))
-(defn stop-edit []
-  (reset! edited-todo nil))
+(defn edit-title [v]  (swap! edited-todo assoc :title  v))
+(defn start-edit [id] (reset! edited-todo (@todos id)))
+(defn stop-edit [] (reset! edited-todo nil))
 (defn select-filter [name] (reset! filt name))
 
 (defn mmap [m f a] (->> m (f a) (into (empty m))))
@@ -87,7 +86,7 @@
        ^{:did-mount #(.focus %)}
        [todo-input {:class "edit"
                     :value (:title edited-todo)
-                    :onsave #(save id %)}])]))
+                    :onsave #(save edited-todo)}])]))
 
 (defn todo-app [todos filt edited-todo]
   (let [items (vals todos)
