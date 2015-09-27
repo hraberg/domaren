@@ -1,5 +1,6 @@
 (ns ^:figwheel-always domaren.dev
     (:require [cljs.reader :as r]
+              [clojure.string :as s]
               [domaren.core]))
 
 ;; Based on https://github.com/reagent-project/reagent/blob/master/examples/todomvc/src/todomvc/core.cljs
@@ -20,7 +21,9 @@
                                        (pr-str (reduce-kv (fn [m k v]
                                                             (assoc m k (dissoc v :editing)))
                                                           {} @todos))))))
-(defonce filt (atom :all))
+(def filters [:all :active :completed])
+
+(defonce filt (atom (first filters)))
 (defonce value (atom ""))
 (defonce counter (atom (or (some-> @todos last key) 0)))
 
@@ -60,19 +63,17 @@
              :onkeydown #(some-> % .-which keymap (apply []))}]))
 
 (defn todo-stats [{:keys [filt active completed]}]
-  (let [props-for (fn [x]
-                    {:class (if (= x filt) "selected")
-                     :href (str "#/" (name x))})]
-    [:div
-     [:span.todo-count
-      [:strong active] " " (case active 1 "item" "items") " left"]
-     [:ul.filters
-      [:li [:a (props-for :all) "All"]]
-      [:li [:a (props-for :active) "Active"]]
-      [:li [:a (props-for :completed) "Completed"]]]
-     (when (pos? completed)
-       [:button.clear-completed {:onclick clear-completed}
-        "Clear completed " completed])]))
+  [:div
+   [:span.todo-count
+    [:strong active] " " (case active 1 "item" "items") " left"]
+   [:ul.filters
+    (for [f filters]
+      [:li [:a {:class (if (= f filt) "selected")
+                :href (str "#/" (name f))}
+            (s/capitalize (name f))]])]
+   (when (pos? completed)
+     [:button.clear-completed {:onclick clear-completed}
+      "Clear completed " completed])])
 
 (defn todo-item [{:keys [editing id completed title]} value]
   [:li {:class (str (if completed "completed ")
@@ -120,16 +121,15 @@
       [:p "Double-click to edit a todo"]
       [:p "Created by Håkan Råberg"]]]))
 
-(domaren.core/render!
- (.getElementById js/document "app")
- #'todo-app
- todos filt value)
-
 (defn on-hashchange []
   (let [hash (some-> js/location .-hash (subs 2))]
-    (if (seq hash)
-      (select-filter (keyword hash))
+    (if-let [f ((set filters) (keyword hash))]
+      (select-filter f)
       (aset js/location "hash" (str "/" (name @filt))))))
 
 (.addEventListener js/window "hashchange" on-hashchange)
 (on-hashchange)
+
+(domaren.core/render! (.getElementById js/document "app")
+                      #'todo-app
+                      todos filt value)
