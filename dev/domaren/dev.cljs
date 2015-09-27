@@ -24,9 +24,9 @@
 
 (defn add-todo [text]
   (let [id (swap! counter inc)]
-    (swap! todos assoc id {:id id :title text :done false :editing false})))
+    (swap! todos assoc id {:id id :title text :completed false :editing false})))
 
-(defn toggle [id] (swap! todos update-in [id :done] not))
+(defn toggle [id] (swap! todos update-in [id :completed] not))
 (defn save [id title] (swap! todos assoc-in [id :title] title))
 (defn delete [id] (swap! todos dissoc id))
 (defn edited-value [v] (reset! value v))
@@ -38,8 +38,8 @@
 (defn select-filter [name] (reset! filt name))
 
 (defn mmap [m f a] (->> m (f a) (into (empty m))))
-(defn complete-all [v] (swap! todos mmap map #(assoc-in % [1 :done] v)))
-(defn clear-done [] (swap! todos mmap remove #(get-in % [1 :done])))
+(defn complete-all [v] (swap! todos mmap map #(assoc-in % [1 :completed] v)))
+(defn clear-completed [] (swap! todos mmap remove #(get-in % [1 :completed])))
 
 (defonce init (when-not (aget js/localStorage "todos")
                 (add-todo "Rename Cloact to Reagent")
@@ -66,7 +66,7 @@
 (def todo-edit (with-meta todo-input
                  {:did-mount #(.focus %)}))
 
-(defn todo-stats [{:keys [filt active done]}]
+(defn todo-stats [{:keys [filt active completed]}]
   (let [props-for (fn [x]
                     {:class (if (= x filt) "selected")
                      :href (str "#/" (name x))})]
@@ -76,16 +76,16 @@
      [:ul.filters
       [:li [:a (props-for :all) "All"]]
       [:li [:a (props-for :active) "Active"]]
-      [:li [:a (props-for :done) "Completed"]]]
-     (when (pos? done)
-       [:button.clear-completed {:onclick clear-done}
-        "Clear completed " done])]))
+      [:li [:a (props-for :completed) "Completed"]]]
+     (when (pos? completed)
+       [:button.clear-completed {:onclick clear-completed}
+        "Clear completed " completed])]))
 
-(defn todo-item [{:keys [editing id done title]} value]
-  [:li {:class (str (if done "completed ")
+(defn todo-item [{:keys [editing id completed title]} value]
+  [:li {:class (str (if completed "completed ")
                     (if editing "editing"))}
    [:div.view
-    [:input.toggle {:type "checkbox" :checked done
+    [:input.toggle {:type "checkbox" :checked completed
                     :onchange #(toggle id)}]
     [:label {:ondblclick #(start-edit id title)} title]
     [:button.destroy {:onclick #(delete id)}]]
@@ -97,8 +97,8 @@
 
 (defn todo-app [todos filt value]
   (let [items (vals todos)
-        done (->> items (filter :done) count)
-        active (- (count items) done)]
+        completed (->> items (filter :completed) count)
+        active (- (count items) completed)]
     [:div
      [:section.todoapp
       [:header.header
@@ -116,12 +116,12 @@
           [:label {:for "toggle-all"} "Mark all as complete"]
           [:ul.todo-list
            (for [todo (filter (case filt
-                                :active (complement :done)
-                                :done :done
+                                :active (complement :completed)
+                                :completed :completed
                                 :all identity) items)]
              ^{:key (:id todo)} [todo-item todo value])]]
          [:footer.footer
-          [todo-stats {:active active :done done :filt filt}]]])]
+          [todo-stats {:active active :completed completed :filt filt}]]])]
      [:footer.info
       [:p "Double-click to edit a todo"]]]))
 
