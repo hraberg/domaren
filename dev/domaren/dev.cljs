@@ -26,22 +26,21 @@
                         :completed :completed))
 
 (defonce filt (atom (key (first filters))))
-(defonce value (atom ""))
+(defonce edited-todo (atom nil))
 (defonce counter (atom (or (some-> @todos last key) 0)))
 
-(defn add-todo [text]
+(defn add-todo [title]
   (let [id (swap! counter inc)]
-    (swap! todos assoc id {:id id :title text :completed false})))
+    (swap! todos assoc id {:id id :title title :completed false})))
 
 (defn toggle [id] (swap! todos update-in [id :completed] not))
 (defn save [id title] (swap! todos assoc-in [id :title] title))
 (defn delete [id] (swap! todos dissoc id))
-(defn edited-value [v] (reset! value v))
-(defn start-edit [id title]
-  (edited-value title)
-  (swap! todos assoc-in [id :editing] true))
-(defn stop-edit [id]
-  (swap! todos update-in [id] dissoc :editing))
+(defn edit-title [v] (swap! edited-todo assoc :title  v))
+(defn start-edit [id]
+  (reset! edited-todo (@todos id)))
+(defn stop-edit []
+  (reset! edited-todo nil))
 (defn select-filter [name] (reset! filt name))
 
 (defn mmap [m f a] (->> m (f a) (into (empty m))))
@@ -50,19 +49,16 @@
 
 (def KEYS {:enter 13 :esc 27})
 
-(defn todo-input [{:keys [class placeholder onsave onstop value]}]
-  (let [stop #(do (edited-value "")
-                  (if onstop (onstop)))
-        save #(do (if-not (empty? value) (onsave value))
-                  (stop))
+(defn todo-input [{:keys [onsave cancel-on-blur value] :as props}]
+  (let [save #(do (if-not (empty? value) (onsave value))
+                  (stop-edit))
         keymap {(:enter KEYS) save
-                (:esc KEYS) stop}]
-    [:input {:class class
-             :placeholder placeholder
-             :type "text" :value value :onblur (if onstop stop save)
-             :autofocus true
-             :oninput #(-> % .-target .-value edited-value)
-             :onkeydown #(some-> % .-which keymap (apply []))}]))
+                (:esc KEYS) stop-edit}]
+    [:input (merge (select-keys props [:class :placeholder :value])
+                   {:autofocus true
+                    :onblur (if cancel-on-blur stop-edit save)
+                    :oninput #(-> % .-target .-value edit-title)
+                    :onkeydown #(some-> % .-which keymap (apply []))})]))
 
 (defn todo-stats [{:keys [filt active completed]}]
   [:div
@@ -77,22 +73,23 @@
      [:button.clear-completed {:onclick clear-completed}
       "Clear completed " completed])])
 
-(defn todo-item [{:keys [editing id completed title]} value]
-  [:li {:class (str (if completed "completed ")
-                    (if editing "editing"))}
-   [:div.view
-    [:input.toggle {:type "checkbox" :checked completed
-                    :onchange #(toggle id)}]
-    [:label {:ondblclick #(start-edit id title)} title]
-    [:button.destroy {:onclick #(delete id)}]]
-   (when editing
-     ^{:did-mount #(.focus %)}
-     [todo-input {:class "edit"
-                  :onsave #(save id %)
-                  :onstop #(stop-edit id)
-                  :value value}])])
+(defn todo-item [{:keys [id completed title]} edited-todo]
+  (let [editing (= id (:id edited-todo))]
+    [:li {:class (str (if completed "completed ")
+                      (if editing "editing"))}
+     [:div.view
+      [:input.toggle {:type "checkbox" :checked completed
+                      :onchange #(toggle id)}]
+      [:label {:ondblclick #(start-edit id)} title]
+      [:button.destroy {:onclick #(delete id)}]]
+     (when editing
+       ^{:did-mount #(.focus %)}
+       [todo-input {:class "edit"
+                    :value (:title edited-todo)
+                    :cancel-on-blur true
+                    :onsave #(save id %)}])]))
 
-(defn todo-app [todos filt value]
+(defn todo-app [todos filt edited-todo]
   (let [items (vals todos)
         completed (->> items (filter :completed) count)
         active (- (count items) completed)]
@@ -102,9 +99,9 @@
        [:h1 "todos"]
        [todo-input {:class "new-todo"
                     :placeholder "What needs to be done?"
-                    :onsave add-todo
-                    :value (when-not (some :editing items)
-                             value)}]]
+                    :value (when-not (:id edited-todo)
+                             (:title edited-todo))
+                    :onsave add-todo}]]
       (when (seq items)
         [:div
          [:section.main
@@ -113,7 +110,7 @@
           [:label {:for "toggle-all"} "Mark all as complete"]
           [:ul.todo-list
            (for [todo (filter (filters filt) items)]
-             ^{:key (:id todo)} [todo-item todo value])]]
+             ^{:key (:id todo)} [todo-item todo edited-todo])]]
          [:footer.footer
           [todo-stats {:active active :completed completed :filt filt}]]])]
      [:footer.info
@@ -131,4 +128,4 @@
 
 (domaren.core/render! (.getElementById js/document "app")
                       #'todo-app
-                      todos filt value)
+                      todos filt edited-todo)
