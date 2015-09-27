@@ -6,7 +6,7 @@
 (enable-console-print!)
 
 (set! domaren.core/DEBUG false)
-(set! domaren.core/TIME_COMPONENTS true)
+(set! domaren.core/TIME_COMPONENTS false)
 (set! domaren.core/TIME_FRAME true)
 
 (defonce todos (atom (sorted-map)))

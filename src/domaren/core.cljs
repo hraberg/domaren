@@ -189,21 +189,27 @@
   (cond-> x (satisfies? IDeref x) deref))
 
 (defn render! [node f & state]
-  (js/requestAnimationFrame
-   (fn tick []
-     (binding [*refresh* (compare-and-set! request-refresh true false)
-               *mounted-nodes* (atom [])]
-       (try
-         (let [current-node (.-firstChild node)
-               new-node (apply component->dom! current-node {:root true} (maybe-deref f) (map maybe-deref state))]
-           (when-not (= new-node current-node)
-             (doto node
-               (aset "innerHTML" "")
-               (.appendChild new-node))))
-         (finally
-           (doseq [f @*mounted-nodes*]
-             (f))
-           (js/requestAnimationFrame tick)))))))
+  (let [f (maybe-deref f)
+        tick-requested? (atom false)
+        tick #(binding [*refresh* (compare-and-set! request-refresh true false)
+                        *mounted-nodes* (atom [])]
+                (reset! tick-requested? false)
+                (try
+                  (let [current-node (.-firstChild node)
+                        new-node (apply component->dom! current-node {:root true} f (mapv maybe-deref state))]
+                    (when-not (= new-node current-node)
+                      (doto node
+                        (aset "innerHTML" "")
+                        (.appendChild new-node))))
+                  (finally
+                    (doseq [f @*mounted-nodes*]
+                      (f)))))
+        request-tick! #(when-not @tick-requested?
+                         (reset! tick-requested? true)
+                         (js/requestAnimationFrame tick))]
+    (doseq [w (filter #(satisfies? IWatchable %) state)]
+      (-add-watch w :tick request-tick!))
+    (request-tick!)))
 
 (defn refresh! []
   (.info js/console "refresh!")
