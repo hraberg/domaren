@@ -131,11 +131,10 @@
  todos filt value)
 
 (defn on-hashchange []
-  (let [location (.-location js/document)
-        hash (some-> location .-hash (subs 2))]
+  (let [hash (some-> js/location .-hash (subs 2))]
     (if (seq hash)
       (select-filter (keyword hash))
-      (aset location "hash" (str "/" (name @filt))))))
+      (aset js/location "hash" (str "/" (name @filt))))))
 
 (.addEventListener js/window "hashchange" on-hashchange)
 (on-hashchange)
