@@ -42,17 +42,17 @@
 
 (def KEYS {:enter 13 :esc 27})
 
-(defn todo-input [{:keys [id class placeholder onsave onstop val]}]
+(defn todo-input [{:keys [id class placeholder onsave onstop value]}]
   (let [stop #(do (edited-value "")
                   (if onstop (onstop)))
-        save #(do (if-not (empty? val) (onsave val))
+        save #(do (if-not (empty? value) (onsave value))
                   (stop))
         keymap {(:enter KEYS) save
                 (:esc KEYS) stop}]
     [:input {:id id
              :class class
              :placeholder placeholder
-             :type "text" :value val :onblur (if onstop stop save)
+             :type "text" :value value :onblur (if onstop stop save)
              :oninput #(-> % .-target .-value edited-value)
              :onkeydown #(some-> % .-which keymap (apply []))}]))
 
@@ -74,7 +74,7 @@
        [:button#clear-completed {:onclick clear-done}
         "Clear completed " done])]))
 
-(defn todo-item [{:keys [editing id done title]} val]
+(defn todo-item [{:keys [editing id done title]} value]
   [:li {:class (str (if done "completed ")
                     (if editing "editing"))}
    [:div.view
@@ -86,9 +86,9 @@
      [todo-edit {:class "edit"
                  :onsave #(save id %)
                  :onstop #(stop-edit id)
-                 :val val}])])
+                 :value value}])])
 
-(defn todo-app [todos filt val]
+(defn todo-app [todos filt value]
   (let [items (vals todos)
         done (->> items (filter :done) count)
         active (- (count items) done)]
@@ -99,8 +99,8 @@
        [todo-input {:id "new-todo"
                     :placeholder "What needs to be done?"
                     :onsave add-todo
-                    :val (when-not (some :editing items)
-                           val)}]]
+                    :value (when-not (some :editing items)
+                             value)}]]
       (when (seq items)
         [:div
          [:section#main
@@ -112,7 +112,7 @@
                                 :active (complement :done)
                                 :done :done
                                 :all identity) items)]
-             ^{:key (:id todo)} [todo-item todo val])]]
+             ^{:key (:id todo)} [todo-item todo value])]]
          [:footer#footer
           [todo-stats {:active active :done done :filt filt}]]])]
      [:footer#info
