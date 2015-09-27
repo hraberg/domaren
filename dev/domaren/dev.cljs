@@ -70,7 +70,7 @@
 (defn todo-stats [{:keys [filt active done]}]
   (let [props-for (fn [x]
                     {:class (if (= x filt) "selected")
-                     :href (str "#" (name x))})]
+                     :href (str "#/" (name x))})]
     [:div
      [:span#todo-count
       [:strong active] " " (case active 1 "item" "items") " left"]
@@ -133,10 +133,10 @@
 
 (defn on-hashchange []
   (let [location (.-location js/document)
-        hash (some-> location .-hash (subs 1))]
+        hash (some-> location .-hash (subs 2))]
     (if (seq hash)
       (select-filter (keyword hash))
-      (aset location "hash" (name @filt)))))
+      (aset location "hash" (str "/" (name @filt))))))
 
 (.addEventListener js/window "hashchange" on-hashchange)
 (on-hashchange)
