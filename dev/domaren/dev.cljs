@@ -6,7 +6,7 @@
 (enable-console-print!)
 
 (set! domaren.core/DEBUG false)
-(set! domaren.core/TIME_COMPONENTS false)
+(set! domaren.core/TIME_COMPONENTS true)
 (set! domaren.core/TIME_FRAME true)
 
 (defonce todos (atom (sorted-map)))
@@ -94,7 +94,7 @@
                     :placeholder "What needs to be done?"
                     :onsave add-todo
                     :val ""}]]
-      (when (-> items count pos?)
+      (when (seq items)
         [:div
          [:section#main
           [:input#toggle-all {:type "checkbox" :checked (zero? active)

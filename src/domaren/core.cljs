@@ -18,10 +18,14 @@
 (defn component? [x]
   (and (vector? x) (fn? (first x))))
 
+(def elements #js {})
+
 (defn create-element [node tag]
   (if (= (s/upper-case tag) (some-> node .-tagName))
     node
-    (doto (.createElement js/document tag)
+    (doto (-> (or (aget elements tag)
+                  (aset elements tag (.createElement js/document tag)))
+              (.cloneNode false))
       (aset "__domaren" #js {}))))
 
 (defn add-properties! [node properties]
