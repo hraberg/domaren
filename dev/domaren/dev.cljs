@@ -21,7 +21,6 @@
 (defonce value (atom ""))
 (defonce counter (atom 0))
 
-
 (defn add-todo [text]
   (let [id (swap! counter inc)]
     (swap! todos assoc id {:id id :title text :completed false :editing false})))
