@@ -34,7 +34,8 @@
     (swap! todos assoc id {:id id :title title :completed false})))
 
 (defn toggle [id] (swap! todos update-in [id :completed] not))
-(defn save [id title] (swap! todos assoc-in [id :title] title))
+(defn save [id title] (when (= (:id @edited-todo) id)
+                        (swap! todos assoc-in [id :title] title)))
 (defn delete [id] (swap! todos dissoc id))
 (defn edit-title [v] (swap! edited-todo assoc :title  v))
 (defn start-edit [id]
@@ -49,14 +50,14 @@
 
 (def KEYS {:enter 13 :esc 27})
 
-(defn todo-input [{:keys [onsave cancel-on-blur value] :as props}]
+(defn todo-input [{:keys [onsave value] :as props}]
   (let [save #(do (if-not (empty? value) (onsave value))
                   (stop-edit))
         keymap {(:enter KEYS) save
                 (:esc KEYS) stop-edit}]
     [:input (merge (select-keys props [:class :placeholder :value])
                    {:autofocus true
-                    :onblur (if cancel-on-blur stop-edit save)
+                    :onblur save
                     :oninput #(-> % .-target .-value edit-title)
                     :onkeydown #(some-> % .-which keymap (apply []))})]))
 
@@ -86,7 +87,6 @@
        ^{:did-mount #(.focus %)}
        [todo-input {:class "edit"
                     :value (:title edited-todo)
-                    :cancel-on-blur true
                     :onsave #(save id %)}])]))
 
 (defn todo-app [todos filt edited-todo]
