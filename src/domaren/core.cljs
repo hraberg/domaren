@@ -108,17 +108,18 @@
                         class (assoc :className class))
            attributes (cond-> (apply dissoc attributes :id :class (keys properties))
                         id (assoc :id id))]
-       {:tag tag :attributes attributes :properties properties}))))
+       {:tag tag :attributes attributes :properties properties
+        :attributes-to-keep (set (mapv name (keys attributes)))}))))
 
 (defn html->dom! [node hiccup]
   (let [[tag & [attributes :as children]] hiccup
         [attributes children] (if (map? attributes)
                                 [attributes (next children)]
                                 [{} children])
-        {:keys [tag attributes properties]} (normalize-tag tag attributes)]
+        {:keys [tag attributes attributes-to-keep properties]} (normalize-tag tag attributes)]
     (doto (create-element node tag)
       (add-attributes! attributes)
-      (keep-attributes! (set (map name (keys attributes))))
+      (keep-attributes! attributes-to-keep)
       (set-properties! properties)
       (align-children! children))))
 
