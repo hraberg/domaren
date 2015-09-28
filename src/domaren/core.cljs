@@ -93,23 +93,29 @@
 
 (def re-class #"\.")
 
+(def normalize-tag
+  (memoize
+   (fn normalize-tag [tag attributes]
+     (let [[_ tag id class] (re-find re-tag (name tag))
+           class (->> (:class attributes)
+                      (conj (s/split class re-class))
+                      (s/join " ")
+                      s/trim)
+           id (attributes :id id)
+           handlers (event-handlers attributes)
+           form-properties (select-keys attributes [:value :checked :selected])
+           properties (cond-> (merge form-properties handlers)
+                        class (assoc :className class))
+           attributes (cond-> (apply dissoc attributes :id :class (keys properties))
+                        id (assoc :id id))]
+       {:tag tag :attributes attributes :properties properties}))))
+
 (defn html->dom! [node hiccup]
   (let [[tag & [attributes :as children]] hiccup
         [attributes children] (if (map? attributes)
-                                [attributes (rest children)]
+                                [attributes (next children)]
                                 [{} children])
-        [_ tag id class] (re-find re-tag (name tag))
-        class (->> (:class attributes)
-                   (conj (s/split class re-class))
-                   (s/join " ")
-                   s/trim)
-        id (attributes :id id)
-        handlers (event-handlers attributes)
-        form-properties (select-keys attributes [:value :checked :selected])
-        properties (cond-> (merge form-properties handlers)
-                     class (assoc :className class))
-        attributes (cond-> (apply dissoc attributes :id :class (keys properties))
-                     id (assoc :id id))]
+        {:keys [tag attributes properties]} (normalize-tag tag attributes)]
     (doto (create-element node tag)
       (add-attributes! attributes)
       (keep-attributes! (set (map name (keys attributes))))
