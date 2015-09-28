@@ -37,7 +37,9 @@
           [k v] attributes
           :let [k (name k)]
           :when (not= (aget attrs k) v)]
-    (.setAttribute node k (aset attrs k (or v "")))))
+    (if-let [v (aset attrs k v)]
+      (.setAttribute node k v)
+      (.removeAttribute node k))))
 
 (defn keep-attributes! [node keep-attribute?]
   (doseq [:let [attrs (aget node "__domaren" "attrs")]
