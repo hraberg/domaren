@@ -9,7 +9,7 @@
 
 (set! domaren.core/DEBUG false)
 (set! domaren.core/TIME_COMPONENTS false)
-(set! domaren.core/TIME_FRAME true)
+(set! domaren.core/TIME_FRAME false)
 
 (defonce todos (-add-watch (atom (into (sorted-map)
                                        (some->> "todos-domaren"

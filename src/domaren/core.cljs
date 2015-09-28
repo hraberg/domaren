@@ -91,6 +91,8 @@
         (remove-children-starting-at! child)))
     (aset node "__domaren" "keys" new-key-map)))
 
+(def re-class #"\.")
+
 (defn html->dom! [node hiccup]
   (let [[tag & [attributes :as children]] hiccup
         [attributes children] (if (map? attributes)
@@ -98,7 +100,7 @@
                                 [{} children])
         [_ tag id class] (re-find re-tag (name tag))
         class (->> (:class attributes)
-                   (conj (s/split class #"\."))
+                   (conj (s/split class re-class))
                    (s/join " ")
                    s/trim)
         id (attributes :id id)
