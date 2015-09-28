@@ -8,9 +8,7 @@
 (declare component->dom! hiccup->dom!)
 
 (defn node-attributes [node]
-  (let [attributes (.-attributes node)]
-    (areduce attributes idx acc []
-             (conj acc (.-name (.item attributes idx))))))
+  (.keys js/Object (aget node "__domaren" "attrs")))
 
 (defn hiccup? [x]
   (and (vector? x) (keyword? (first x))))
@@ -21,12 +19,12 @@
 (def elements #js {})
 
 (defn create-element [node tag]
-  (if (= (s/upper-case tag) (some-> node .-tagName))
+  (if (= tag (some-> node .-__domaren .-tag))
     node
     (doto (-> (or (aget elements tag)
                   (aset elements tag (.createElement js/document tag)))
               (.cloneNode false))
-      (aset "__domaren" #js {}))))
+      (aset "__domaren" #js {:tag tag :attrs #js {}}))))
 
 (defn set-properties! [node properties]
   (doseq [[k v] properties
@@ -35,14 +33,17 @@
     (aset node k v)))
 
 (defn add-attributes! [node attributes]
-  (doseq [[k v] attributes
+  (doseq [:let [attrs (aget node "__domaren" "attrs")]
+          [k v] attributes
           :let [k (name k)]
-          :when (not= (.getAttribute node k) v)]
-    (.setAttribute node k (or v ""))))
+          :when (not= (aget attrs k) v)]
+    (.setAttribute node k (aset attrs k (or v "")))))
 
 (defn keep-attributes! [node keep-attribute?]
-  (doseq [k (node-attributes node)
+  (doseq [:let [attrs (aget node "__domaren" "attrs")]
+          k (node-attributes node)
           :when (not (keep-attribute? k))]
+    (js-delete attrs k)
     (.removeAttribute node k)))
 
 (defn remove-children-starting-at! [node]
