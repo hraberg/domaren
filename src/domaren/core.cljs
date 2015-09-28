@@ -104,10 +104,10 @@
         id (attributes :id id)
         handlers (event-handlers attributes)
         form-properties (select-keys attributes [:value :checked :selected])
-        properties (merge form-properties handlers)
+        properties (cond-> (merge form-properties handlers)
+                     class (assoc :className class))
         attributes (cond-> (apply dissoc attributes :id :class (keys properties))
-                     id (assoc :id id)
-                     (seq class) (assoc :class class))]
+                     id (assoc :id id))]
     (doto (create-element node tag)
       (add-attributes! attributes)
       (keep-attributes! (set (map name (keys attributes))))
