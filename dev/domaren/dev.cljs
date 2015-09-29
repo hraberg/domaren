@@ -45,7 +45,7 @@
 (def KEYS {:enter 13 :esc 27})
 
 (defn todo-input [{:keys [onsave onstop] :as props}]
-  (let [stop #(do (if onstop onstop)
+  (let [stop #(do (if onstop (onstop))
                   (aset % "target" "value" ""))
         save #(let [v (aget % "target" "value")]
                 (if-not (empty? v) (onsave v))
