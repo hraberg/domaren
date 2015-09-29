@@ -105,7 +105,7 @@
                       s/trim)
            id (attributes :id id)
            handlers (event-handlers attributes)
-           form-properties (select-keys attributes [:value :checked :selected])
+           form-properties (select-keys attributes [:value :checked :selected :selectedIndex])
            properties (cond-> (merge form-properties handlers)
                         class (assoc :className class))
            attributes (cond-> (apply dissoc attributes :id :class (keys properties))

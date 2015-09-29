@@ -44,8 +44,8 @@
 
 (def KEYS {:enter 13 :esc 27})
 
-(defn todo-input [{:keys [onsave value] :as props}]
-  (let [stop #(do (stop-edit)
+(defn todo-input [{:keys [onsave onstop] :as props}]
+  (let [stop #(do (if onstop onstop)
                   (aset % "target" "value" ""))
         save #(let [v (aget % "target" "value")]
                 (if-not (empty? v) (onsave v))
@@ -82,7 +82,8 @@
      ^{:did-mount #(.focus %)}
      [todo-input {:class "edit"
                   :value title
-                  :onsave #(save id %)}])])
+                  :onsave #(save id %)
+                  :onstop stop-edit}])])
 
 (defn todo-app [todos filt edited-todo]
   (let [items (vals todos)
