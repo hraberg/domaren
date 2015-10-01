@@ -203,6 +203,14 @@
 (defn maybe-deref [x]
   (cond-> x (satisfies? IDeref x) deref))
 
+(defn render-root! [node f & state]
+  (let [current-node (.-firstChild node)
+        new-node (apply component->dom! current-node {:root true} f state)]
+    (when-not (= new-node current-node)
+      (doto node
+        (aset "innerHTML" "")
+        (.appendChild new-node)))))
+
 (defn render! [node f & state]
   (let [f (maybe-deref f)
         tick-requested? (atom false)
@@ -210,12 +218,7 @@
                         *mounted-nodes* (atom [])]
                 (reset! tick-requested? false)
                 (try
-                  (let [current-node (.-firstChild node)
-                        new-node (apply component->dom! current-node {:root true} f (mapv maybe-deref state))]
-                    (when-not (= new-node current-node)
-                      (doto node
-                        (aset "innerHTML" "")
-                        (.appendChild new-node))))
+                  (apply render-root! node f (mapv maybe-deref state))
                   (finally
                     (doseq [f @*mounted-nodes*]
                       (f)))))

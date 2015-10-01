@@ -3,7 +3,7 @@
 *Domaren dömer (the judge judges)*
 -- Ancient Swedish proverb
 
-### ClojureScript [incremental-dom](google.github.io/incremental-dom) style library.
+### ClojureScript [incremental-dom](https://google.github.io/incremental-dom) style library.
 
 *No Docs. No Tests. No Features.*
 
@@ -11,18 +11,23 @@
 ## Overview
 
 Incremental/Virtual DOM renderer in ClojureScript without any
-dependencies like React. Stores various info in the DOM directly. Uses
+dependencies like [React](https://facebook.github.io/react/). Stores
+various info in the DOM directly. Uses
 [Hiccup](https://github.com/weavejester/hiccup) style syntax to
 represent the tree. Like in
 [Reagent](https://github.com/reagent-project/reagent), components are
 specified using functions instead of keywords in the tree. Not
 optimized. Naive support for `key` on children. Likely very buggy.
 
-Aims to be dead simple. Does not concern itself with how and when the
-app state atom is updated. Instead it always renders each frame using
-`requestAnimationFrame`, but will try to avoid render
-sub-trees. Caching of inputs to components are done straight in the
-DOM, there are no cursors or special atoms.
+Aims to be dead simple. Does not concern itself with how and where the
+app state is updated.
+
+`render-root!` renders a Hiccup style tree under a DOM node.
+`render!` is an optional render loop using watches and
+[`requestAnimationFrame`](https://developer.mozilla.org/en/docs/Web/API/window/requestAnimationFrame).
+
+Caching of inputs to components to avoid rendering sub trees are done
+straight in the DOM, there are no cursors or special atoms.
 
 
 ## Setup
