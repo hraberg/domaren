@@ -232,8 +232,7 @@
                   (finally
                     (doseq [f @*mounted-nodes*]
                       (f)))))
-        request-tick! #(when-not @tick-requested?
-                         (reset! tick-requested? true)
+        request-tick! #(when (compare-and-set! tick-requested? false true)
                          (js/requestAnimationFrame tick))]
     (doseq [w (filter #(satisfies? IWatchable %) state)]
       (-add-watch w ::tick request-tick!))
