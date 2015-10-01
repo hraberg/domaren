@@ -37,15 +37,16 @@ To clean all compiled files:
 
     lein clean
 
+
 ## References
 
-https://facebook.github.io/react/docs/reconciliation.html
-http://google.github.io/incremental-dom/
-https://github.com/Matt-Esch/virtual-dom
-https://github.com/trueadm/inferno
-https://github.com/paldepind/snabbdom
-http://mithril.js.org/
-http://vdom-benchmark.github.io/vdom-benchmark/
+* https://facebook.github.io/react/docs/reconciliation.html
+* http://google.github.io/incremental-dom/
+* https://github.com/Matt-Esch/virtual-dom
+* https://github.com/trueadm/inferno
+* https://github.com/paldepind/snabbdom
+* http://mithril.js.org/
+* http://vdom-benchmark.github.io/vdom-benchmark/
 
 
 ## License
