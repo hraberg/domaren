@@ -203,7 +203,13 @@
 (defn maybe-deref [x]
   (cond-> x (satisfies? IDeref x) deref))
 
-(defn render-root! [node f & state]
+;; Public API
+
+(defn render-root!
+  "Passes all state to f which should return a Hiccup-style tree,
+  which is added or reconciled below the provided DOM node as a single
+  child."
+  [node f & state]
   (let [current-node (.-firstChild node)
         new-node (apply component->dom! current-node {:root true} f state)]
     (when-not (= new-node current-node)
@@ -211,7 +217,11 @@
         (aset "innerHTML" "")
         (.appendChild new-node)))))
 
-(defn render! [node f & state]
+(defn render!
+  "Render loop using requestAnimationFrame and IWatch to track state
+  changes, usually on atoms. Derefences both f and state before
+  passing them to render-root! on state change."
+  [node f & state]
   (let [f (maybe-deref f)
         tick-requested? (atom false)
         tick #(binding [*refresh* (compare-and-set! request-refresh true false)
@@ -229,6 +239,8 @@
       (-add-watch w ::tick request-tick!))
     (request-tick!)))
 
-(defn refresh! []
+(defn refresh!
+  "Forces a full refersh of the DOM."
+  []
   (.info js/console "refresh!")
   (reset! request-refresh true))
