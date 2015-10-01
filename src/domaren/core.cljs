@@ -1,4 +1,4 @@
-(ns ^:figwheel-always domaren.core
+(ns domaren.core
     (:require [clojure.string :as s]))
 
 (def DEBUG false)
