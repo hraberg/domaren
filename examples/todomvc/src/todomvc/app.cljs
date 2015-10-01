@@ -1,15 +1,13 @@
-(ns ^:figwheel-always domaren.dev
+(ns todomvc.app
     (:require [cljs.reader :as r]
               [clojure.string :as s]
-              [domaren.core]))
+              [domaren.core :as d]))
 
 ;; Based on https://github.com/reagent-project/reagent/blob/master/examples/todomvc/src/todomvc/core.cljs
 
 (enable-console-print!)
 
-(set! domaren.core/DEBUG false)
-(set! domaren.core/TIME_COMPONENTS false)
-(set! domaren.core/TIME_FRAME true)
+(set! d/TIME_FRAME true)
 
 (defonce todos (-add-watch (atom (into (sorted-map)
                                        (some->> "todos-domaren"
@@ -120,6 +118,6 @@
 (.addEventListener js/window "hashchange" on-hashchange)
 (on-hashchange)
 
-(domaren.core/render! (.getElementById js/document "app")
-                      #'todo-app
-                      todos filt edited-todo)
+(d/render! (.getElementById js/document "app")
+           #'todo-app
+           todos filt edited-todo)
