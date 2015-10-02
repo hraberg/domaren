@@ -249,12 +249,16 @@
   which is added or reconciled below the provided DOM node as a single
   child."
   [node f & state]
-  (let [current-node (.-firstChild node)
-        new-node (apply component->dom! current-node {:root true} f state)]
-    (when-not (= new-node current-node)
-      (doto node
-        (aset "innerHTML" "")
-        (.appendChild new-node)))))
+  (binding [*refresh* (compare-and-set! request-refresh true false)
+            *mounted-nodes* (atom [])]
+    (let [current-node (.-firstChild node)
+          new-node (apply component->dom! current-node {:root true} f state)]
+      (when-not (= new-node current-node)
+        (doto node
+          (aset "innerHTML" "")
+          (.appendChild new-node)))
+      (doseq [f @*mounted-nodes*]
+          (f)))))
 
 (defn render!
   "Render loop using requestAnimationFrame and IWatch to track state
@@ -263,14 +267,9 @@
   [node f & state]
   (let [f (maybe-deref f)
         tick-requested? (atom false)
-        tick #(binding [*refresh* (compare-and-set! request-refresh true false)
-                        *mounted-nodes* (atom [])]
-                (reset! tick-requested? false)
-                (try
-                  (apply render-root! node f (mapv maybe-deref state))
-                  (finally
-                    (doseq [f @*mounted-nodes*]
-                      (f)))))
+        tick (fn []
+               (reset! tick-requested? false)
+               (apply render-root! node f (mapv maybe-deref state)))
         request-tick! #(when (compare-and-set! tick-requested? false true)
                          (js/requestAnimationFrame tick))]
     (doseq [w (filter #(satisfies? IWatchable %) state)]
