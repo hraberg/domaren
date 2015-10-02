@@ -119,7 +119,9 @@
 (on-hashchange)
 
 (d/render! (.getElementById js/document "app")
-           #'todo-app
+           (with-meta todo-app
+             {:did-update #(set! (.-innerHTML (js/document.getElementById "message"))
+                                 (str d/render-time "ms"))})
            todos filt edited-todo)
 
 ;; From https://github.com/swannodette/todomvc/blob/gh-pages/labs/architecture-examples/om/src/todomvc/app.cljs
