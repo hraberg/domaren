@@ -119,7 +119,7 @@
 (d/render! (.getElementById js/document "app")
            (with-meta todo-app
              {:did-update #(set! (.-innerHTML (js/document.getElementById "message"))
-                                 (str d/render-time "ms"))})
+                                 (str (aget % "__domaren" "render-time") "ms"))})
            todos filt edited-todo)
 
 ;; From https://github.com/swannodette/todomvc/blob/gh-pages/labs/architecture-examples/om/src/todomvc/app.cljs

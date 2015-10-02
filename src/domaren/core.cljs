@@ -218,8 +218,6 @@
         (swap! *mounted-nodes* conj (fn [] (apply did-mount node state)))))
     (some-> did-update (apply node previous-state state))))
 
-(def render-time 0)
-
 (defn component->dom! [node opts f & state]
   (let [node (when (= f (component-fn node))
                node)
@@ -231,8 +229,9 @@
             render-start (.now js/Date)]
         (when DEBUG
           (.debug js/console component-name node (s/trim (pr-str state))))
-        (let [node (hiccup->dom! node (apply f state))]
-          (set! render-time (- (.now js/Date) render-start))
+        (let [node (hiccup->dom! node (apply f state))
+              render-time (- (.now js/Date) render-start)]
+          (aset node "__domaren" "render-time" render-time)
           (when time?
             (.info js/console component-name render-time "ms"))
           (doto node
