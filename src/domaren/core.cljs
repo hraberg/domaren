@@ -106,11 +106,12 @@
            id (attributes :id id)
            handlers (event-handlers attributes)
            form-properties (select-keys attributes [:value :checked :selected :selectedIndex])
-           properties (cond-> (merge form-properties handlers)
+           properties (cond-> form-properties
                         class (assoc :className class))
-           attributes (cond-> (apply dissoc attributes :id :class (keys properties))
+           attributes (cond-> (apply dissoc attributes :id :class
+                                     (concat (keys handlers) (keys properties)))
                         id (assoc :id id))]
-       {:tag tag :attributes attributes :properties properties
+       {:tag tag :attributes attributes :properties properties :handlers handlers
         :attributes-to-keep (set (mapv name (keys attributes)))}))))
 
 (defn normalize-hiccup [hiccup]
@@ -120,14 +121,19 @@
                                 [{} children])]
     (assoc (normalize-tag tag attributes) :children children)))
 
+(defn register-event-handlers! [node handlers]
+  (doseq [[k v] handlers]
+    (aset node "__domaren" (name k) v)))
+
 (defn html->dom! [node hiccup]
-  (let [{:keys [tag attributes attributes-to-keep
+  (let [{:keys [tag attributes attributes-to-keep handlers
                 properties children]} (normalize-hiccup hiccup)]
     (doto (create-element node tag)
       (add-attributes! attributes)
       (keep-attributes! attributes-to-keep)
       (set-properties! properties)
-      (align-children! children))))
+      (align-children! children)
+      (register-event-handlers! handlers))))
 
 (defn text-node? [node]
   (some-> node .-nodeType (== (.-TEXT_NODE js/Node))))
@@ -237,6 +243,13 @@
 (defn maybe-deref [x]
   (cond-> x (satisfies? IDeref x) deref))
 
+(defn register-top-level-event-handlers! [node]
+  (doseq [h ["onclick" "ondblclick" "onkeydown" "onblur" "onchange"]]
+    (aset node h
+          (fn [event]
+            (when-let [f (some-> event .-target .-__domaren (aget h))]
+              (f event))))))
+
 ;; Public API
 
 (defn render-str
@@ -254,6 +267,7 @@
     (let [current-node (.-firstChild node)
           new-node (apply component->dom! current-node {:root true} f state)]
       (when-not (= new-node current-node)
+        (register-top-level-event-handlers! new-node)
         (doto node
           (aset "innerHTML" "")
           (.appendChild new-node)))
