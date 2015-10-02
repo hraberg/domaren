@@ -121,3 +121,18 @@
 (d/render! (.getElementById js/document "app")
            #'todo-app
            todos filt edited-todo)
+
+;; From https://github.com/swannodette/todomvc/blob/gh-pages/labs/architecture-examples/om/src/todomvc/app.cljs
+(aset js/window "benchmark1"
+  (fn [e]
+    (dotimes [_ 200]
+      (add-todo "foo"))))
+
+(aset js/window "benchmark2"
+  (fn [e]
+    (dotimes [_ 200]
+      (add-todo "foo"))
+    (dotimes [_ 5]
+      (complete-all false)
+      (complete-all true))
+    (clear-completed)))
