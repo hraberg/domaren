@@ -5,7 +5,7 @@
 (def TIME_COMPONENTS false)
 (def TIME_FRAME false)
 
-(declare component->dom! hiccup->dom!)
+(declare component->dom! hiccup->dom! hiccup->str)
 
 (defn node-attributes [node]
   (.keys js/Object (aget node "__domaren" "attrs")))
@@ -113,12 +113,16 @@
        {:tag tag :attributes attributes :properties properties
         :attributes-to-keep (set (mapv name (keys attributes)))}))))
 
-(defn html->dom! [node hiccup]
+(defn normalize-hiccup [hiccup]
   (let [[tag & [attributes :as children]] hiccup
         [attributes children] (if (map? attributes)
                                 [attributes (next children)]
-                                [{} children])
-        {:keys [tag attributes attributes-to-keep properties]} (normalize-tag tag attributes)]
+                                [{} children])]
+    (assoc (normalize-tag tag attributes) :children children)))
+
+(defn html->dom! [node hiccup]
+  (let [{:keys [tag attributes attributes-to-keep
+                properties children]} (normalize-hiccup hiccup)]
     (doto (create-element node tag)
       (add-attributes! attributes)
       (keep-attributes! attributes-to-keep)
@@ -144,6 +148,36 @@
 
     :else
     (text->dom! node (str hiccup))))
+
+(defn html->str [hiccup]
+  (let [{:keys [tag attributes
+                properties children]} (normalize-hiccup hiccup)
+        attributes (-> attributes
+                       (merge properties)
+                       (dissoc :className)
+                       (assoc :class (:className properties)))
+        attributes (s/join " " (for [[k v] attributes
+                                     :when (and (not (fn? v)) (seq (str v)))]
+                                 (str (name k) "=\"" v "\"")))]
+    (str "<" (name tag) (when (seq attributes)
+                          (str " " attributes))
+         ">"
+         (s/join (map hiccup->str children))
+         "</" (name tag) ">")))
+
+(defn hiccup->str [hiccup]
+  (cond
+    (component? hiccup)
+    (hiccup->str (apply (first hiccup) (rest hiccup)))
+
+    (hiccup? hiccup)
+    (html->str hiccup)
+
+    (seq? hiccup)
+    (s/join (map hiccup->str hiccup))
+
+    :else
+    (str hiccup)))
 
 (defonce request-refresh (atom false))
 (def ^:dynamic *refresh* false)
@@ -204,6 +238,11 @@
   (cond-> x (satisfies? IDeref x) deref))
 
 ;; Public API
+
+(defn render-str
+  "Renders component f to a HTML string."
+  [f & state]
+  (hiccup->str (vec (cons f state))))
 
 (defn render-root!
   "Passes all state to f which should return a Hiccup-style tree,

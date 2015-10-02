@@ -25,6 +25,8 @@ app state is updated.
 `render-root!` renders a Hiccup style tree under a DOM node.
 `render!` is an optional render loop using watches and
 [`requestAnimationFrame`](https://developer.mozilla.org/en/docs/Web/API/window/requestAnimationFrame).
+`render-str` renders a component to a HTML string without involving
+the DOM.
 
 Caching of inputs to components to avoid rendering sub trees are done
 straight in the DOM, there are no cursors or special atoms.
