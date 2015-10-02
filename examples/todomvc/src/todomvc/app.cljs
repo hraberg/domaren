@@ -15,8 +15,8 @@
                                                 r/read-string)))
                            :storage
                            (fn [_ _ newval]
-                             (.setItem js/localStorage "todos-domaren"
-                                       (pr-str @todos)))))
+                             (.setItem js/localStorage "todos-domaren" (pr-str newval)))))
+
 (def filters (array-map :all identity
                         :active (complement :completed)
                         :completed :completed))
