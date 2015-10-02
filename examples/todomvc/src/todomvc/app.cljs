@@ -7,15 +7,13 @@
 
 (enable-console-print!)
 
-(set! d/TIME_FRAME true)
-
 (defonce todos (-add-watch (atom (into (sorted-map)
                                        (some->> "todos-domaren"
                                                 (.getItem js/localStorage)
                                                 r/read-string)))
                            :storage
                            (fn [_ _ newval]
-                             (.setItem js/localStorage "todos-domaren" (pr-str newval)))))
+                             (js/setTimeout #(.setItem js/localStorage "todos-domaren" (pr-str newval))))))
 
 (def filters (array-map :all identity
                         :active (complement :completed)
