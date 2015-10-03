@@ -200,8 +200,7 @@
   (some-> node .-__domaren .-state))
 
 (defn should-component-update? [node state]
-  (or (not (and node (= (component-state node) state)))
-      *refresh*))
+  (not (and node (= (component-state node) state))))
 
 (defn component-will-mount? [node]
   (not (.-parentNode node)))
@@ -221,8 +220,9 @@
 (defn component->dom! [node opts f & state]
   (let [node (when (= f (component-fn node))
                node)
-        state (vec state)]
-    (if (should-component-update? node state)
+        state (vec state)
+        should-component-update? (:should-component-update? opts should-component-update?)]
+    (if (or *refresh* (should-component-update? node state))
       (let [time? (or TIME_COMPONENTS (and (:root opts) TIME_FRAME))
             opts (merge (meta f) opts)
             component-name (component-name f)
