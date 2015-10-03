@@ -7,8 +7,18 @@
 
 (declare component->dom! hiccup->dom! hiccup->str)
 
-(defn node-attributes [node]
-  (.keys js/Object (aget node "__domaren" "attrs")))
+(defn node-state
+  ([node]
+   (some-> node (aget "__domaren")))
+  ([node k]
+   (some-> (node-state node) (aget k))))
+
+(defn set-node-state! [node k v]
+  (aset (node-state node) k v))
+
+(defn init-node-state! [node]
+  (let [tag (s/lower-case (.-tagName node))]
+    (aset node "__domaren" #js {:tag tag :attrs #js {}})))
 
 (defn hiccup? [x]
   (and (vector? x) (keyword? (first x))))
@@ -19,12 +29,12 @@
 (def elements #js {})
 
 (defn create-element [node tag]
-  (if (= tag (some-> node .-__domaren .-tag))
+  (if (= tag (node-state node "tag"))
     node
     (doto (-> (or (aget elements tag)
                   (aset elements tag (.createElement js/document tag)))
               (.cloneNode false))
-      (aset "__domaren" #js {:tag tag :attrs #js {}}))))
+      init-node-state!)))
 
 (defn set-properties! [node properties]
   (doseq [[k v] properties
@@ -33,7 +43,7 @@
     (aset node k v)))
 
 (defn add-attributes! [node attributes]
-  (doseq [:let [attrs (aget node "__domaren" "attrs")]
+  (doseq [:let [attrs (node-state node "attrs")]
           [k v] attributes
           :let [k (name k)]
           :when (not= (aget attrs k) v)]
@@ -42,8 +52,8 @@
       (.removeAttribute node k))))
 
 (defn keep-attributes! [node keep-attribute?]
-  (doseq [:let [attrs (aget node "__domaren" "attrs")]
-          k (node-attributes node)
+  (doseq [:let [attrs (node-state node "attrs")]
+          k (.keys js/Object attrs)
           :when (not (keep-attribute? k))]
     (js-delete attrs k)
     (.removeAttribute node k)))
@@ -63,7 +73,7 @@
   re-tag #"([^\s\.#]+)(?:#([^\s\.#]+))?(?:\.([^\s#]+))?")
 
 (defn align-children! [node children]
-  (let [key-map (aget node "__domaren" "keys")
+  (let [key-map (node-state node "keys")
         new-key-map #js {}]
     (loop [[h & hs] children child (.-firstChild node)]
       (cond
@@ -91,7 +101,7 @@
 
         :else
         (remove-children-starting-at! child)))
-    (aset node "__domaren" "keys" new-key-map)))
+    (set-node-state! node "keys" new-key-map)))
 
 (def re-class #"\.")
 
@@ -123,7 +133,7 @@
 
 (defn register-event-handlers! [node handlers]
   (doseq [[k v] handlers]
-    (aset node "__domaren" (name k) v)))
+    (set-node-state! node (name k) v)))
 
 (defn html->dom! [node hiccup]
   (let [{:keys [tag attributes attributes-to-keep handlers
@@ -193,14 +203,8 @@
 (defn component-name [f]
   (s/replace (or (.-name f) "<anonymous>") re-component-name "."))
 
-(defn component-fn [node]
-  (some-> node .-__domaren .-component))
-
-(defn component-state [node]
-  (some-> node .-__domaren .-state))
-
 (defn should-component-update? [node state]
-  (not (and node (= (component-state node) state))))
+  (not (and node (= (node-state node "state") state))))
 
 (defn component-will-mount? [node]
   (not (.-parentNode node)))
@@ -218,7 +222,7 @@
     (some-> did-update (apply node previous-state state))))
 
 (defn component->dom! [node opts f & state]
-  (let [node (when (= f (component-fn node))
+  (let [node (when (= f (node-state node "component"))
                node)
         state (vec state)
         should-component-update? (:should-component-update? opts should-component-update?)]
@@ -231,23 +235,23 @@
           (.debug js/console component-name node (s/trim (pr-str state))))
         (let [node (hiccup->dom! node (apply f state))
               render-time (- (.now js/Date) render-start)]
-          (aset node "__domaren" "render-time" render-time)
+          (set-node-state! node "render-time" render-time)
           (when time?
             (.info js/console component-name render-time "ms"))
           (doto node
-            (component-callbacks! opts (component-state node) state)
-            (aset "__domaren" "component" f)
-            (aset "__domaren" "state" state))))
+            (component-callbacks! opts (node-state node "state") state)
+            (set-node-state! "component" f)
+            (set-node-state!  "state" state))))
       node)))
 
 (defn maybe-deref [x]
   (cond-> x (satisfies? IDeref x) deref))
 
 (defn register-top-level-event-handlers! [node]
-  (doseq [h ["onclick" "ondblclick" "onkeydown" "onblur" "onchange"]]
-    (aset node h
+  (doseq [handler ["onclick" "ondblclick" "onkeydown" "onblur" "onchange"]]
+    (aset node handler
           (fn [event]
-            (when-let [f (some-> event .-target .-__domaren (aget h))]
+            (when-let [f (node-state (.-target event) handler)]
               (f event))))))
 
 ;; Public API
