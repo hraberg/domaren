@@ -89,10 +89,13 @@
 (defn align-children! [node children]
   (let [key-map (node-state node "keys")
         new-key-map #js {}]
-    (loop [[h & hs] children child (.-firstChild node)]
+    (loop [[h & hs] children stack nil child (.-firstChild node)]
       (cond
         (seq? h)
-        (recur (into (vec h) hs) child)
+        (recur h (cons hs stack) child)
+
+        (and (nil? h) (first stack))
+        (recur (first stack) (next stack) child)
 
         (nil? h)
         (remove-children-starting-at! child)
@@ -102,7 +105,7 @@
               old-child (some-> key-map (aget key))
               child (cond->> (reconcile! node child old-child h)
                       key (aset new-key-map key))]
-          (recur hs (.-nextSibling child)))))
+          (recur hs stack (.-nextSibling child)))))
     (set-node-state! node "keys" new-key-map)))
 
 (def re-class #"\.")
