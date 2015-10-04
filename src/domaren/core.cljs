@@ -72,35 +72,37 @@
        :private true}
   re-tag #"([^\s\.#]+)(?:#([^\s\.#]+))?(?:\.([^\s#]+))?")
 
+(defn reconcile! [node child old-child hiccup]
+  (let [child (if (and child old-child
+                       (not= child old-child))
+                (.insertBefore node old-child child)
+                child)
+        new-child (hiccup->dom! child hiccup)]
+    (cond
+      (and child (not= child new-child))
+      (.replaceChild node new-child child)
+
+      (not child)
+      (.appendChild node new-child))
+    new-child))
+
 (defn align-children! [node children]
   (let [key-map (node-state node "keys")
         new-key-map #js {}]
     (loop [[h & hs] children child (.-firstChild node)]
       (cond
         (seq? h)
-        (recur (concat h hs) child)
+        (recur (into (vec h) hs) child)
 
-        h
-        (let [key (some-> h meta :key str)
-              old-child (some-> key-map (aget key))
-              child (if (and child old-child
-                             (not= child old-child))
-                      (.insertBefore node old-child child)
-                      child)
-              new-child (hiccup->dom! child h)]
-          (when key
-            (aset new-key-map key new-child))
-
-          (cond
-            (and child (not= child new-child))
-            (.replaceChild node new-child child)
-
-            (not child)
-            (.appendChild node new-child))
-          (recur hs (.-nextSibling new-child)))
+        (nil? h)
+        (remove-children-starting-at! child)
 
         :else
-        (remove-children-starting-at! child)))
+        (let [key (some-> h meta :key str)
+              old-child (some-> key-map (aget key))
+              child (cond->> (reconcile! node child old-child h)
+                      key (aset new-key-map key))]
+          (recur hs (.-nextSibling child)))))
     (set-node-state! node "keys" new-key-map)))
 
 (def re-class #"\.")
