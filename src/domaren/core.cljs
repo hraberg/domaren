@@ -20,11 +20,13 @@
   (let [tag (s/lower-case (.-tagName node))]
     (aset node "__domaren" #js {:tag tag :attrs #js {}})))
 
-(defn hiccup? [x]
-  (and (vector? x) (keyword? (first x))))
+(defn ^boolean hiccup? [x]
+  (and (instance? PersistentVector x)
+       (keyword? (first x))))
 
-(defn component? [x]
-  (and (vector? x) (fn? (first x))))
+(defn ^boolean component? [x]
+  (and (instance? PersistentVector x)
+       (instance? js/Function (first x))))
 
 (def elements #js {})
 
@@ -65,7 +67,7 @@
     (.remove node)))
 
 (defn event-handlers [attributes]
-  (into {} (filter (comp fn? val) attributes)))
+  (into {} (filter #(instance? js/Function (val %)) attributes)))
 
 ;; From https://github.com/weavejester/hiccup/blob/master/src/hiccup/compiler.clj
 (def ^{:doc "Regular expression that parses a CSS-style id and class from an element name."
@@ -108,16 +110,11 @@
           (recur hs stack (.-nextSibling child)))))
     (set-node-state! node "keys" new-key-map)))
 
-(def re-class #"\.")
-
 (def normalize-tag
   (memoize
    (fn normalize-tag [tag attributes]
      (let [[_ tag id class] (re-find re-tag (name tag))
-           class (->> (:class attributes)
-                      (conj (s/split class re-class))
-                      (s/join " ")
-                      s/trim)
+           class (:class attributes (some-> class (.replace "." " ")))
            id (attributes :id id)
            handlers (event-handlers attributes)
            form-properties (select-keys attributes [:value :checked :selected :selectedIndex])
@@ -150,7 +147,7 @@
       (align-children! children)
       (register-event-handlers! handlers))))
 
-(defn text-node? [node]
+(defn ^boolean text-node? [node]
   (some-> node .-nodeType (== (.-TEXT_NODE js/Node))))
 
 (defn text->dom! [node text]
@@ -161,11 +158,11 @@
 
 (defn hiccup->dom! [node hiccup]
   (cond
-    (component? hiccup)
-    (apply component->dom! node (meta hiccup) hiccup)
-
     (hiccup? hiccup)
     (html->dom! node hiccup)
+
+    (component? hiccup)
+    (apply component->dom! node (meta hiccup) hiccup)
 
     :else
     (text->dom! node (str hiccup))))
@@ -178,7 +175,8 @@
                        (dissoc :className)
                        (assoc :class (:className properties)))
         attributes (s/join " " (for [[k v] attributes
-                                     :when (and (not (fn? v)) (seq (str v)))]
+                                     :when (and (not (instance? js/Function v))
+                                                (seq (str v)))]
                                  (str (name k) "=\"" v "\"")))]
     (str "<" (name tag) (when (seq attributes)
                           (str " " attributes))
@@ -203,15 +201,13 @@
 (defonce request-refresh (atom false))
 (def ^:dynamic *refresh* false)
 
-(def re-component-name #"\$")
-
 (defn component-name [f]
-  (s/replace (or (.-name f) "<anonymous>") re-component-name "."))
+  (.replace (or (.-name f) "<anonymous>") "$" "."))
 
-(defn should-component-update? [node state]
+(defn ^boolean should-component-update? [node state]
   (not (and node (= (node-state node "state") state))))
 
-(defn component-will-mount? [node]
+(defn ^boolean component-will-mount? [node]
   (not (.-parentNode node)))
 
 (def ^:dynamic *mounted-nodes*)
@@ -246,7 +242,7 @@
           (doto node
             (component-callbacks! opts (node-state node "state") state)
             (set-node-state! "component" f)
-            (set-node-state!  "state" state))))
+            (set-node-state! "state" state))))
       node)))
 
 (defn maybe-deref [x]
