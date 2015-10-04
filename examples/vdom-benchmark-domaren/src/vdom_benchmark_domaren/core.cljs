@@ -6,8 +6,8 @@
   (for [n nodes
         :let [k (.-key n)]]
     (if (.-children n)
-      [:div {:key k} (render-tree (.-children n))]
-      [:span {:key k} (str k)])))
+      ^{:key k} [:div (render-tree (.-children n))]
+      ^{:key k} [:span (str k)])))
 
 (defrecord BenchmarkImpl [container a b]
   Object
