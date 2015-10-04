@@ -18,21 +18,28 @@
 
   :source-paths ["src"]
 
-  :clean-targets ^{:protect false} ["examples/todomvc/resources/public/js/compiled" "target"]
+  :clean-targets ^{:protect false} ["examples/todomvc/resources/public/js/compiled"
+                                    "examples/vdom-benchmark-domaren/web/js/compiled"
+                                    "target"]
 
   :cljsbuild {
     :builds [{:id "todomvc"
               :source-paths ["src" "examples/todomvc/src"]
-
               :figwheel {:on-jsload "domaren.core/refresh!"
                          :css-dirs ["examples/todomvc/resources/public/node_modules/todomvc-app-css/"
                                     "examples/todomvc/resources/public/node_modules/todomvc-common/"]}
-
               :compiler {:main todomvc.app
                          :asset-path "js/compiled/out"
                          :output-to "examples/todomvc/resources/public/js/compiled/todomvc.js"
                          :output-dir "examples/todomvc/resources/public/js/compiled/out"
-                         :source-map-timestamp true}}]}
+                         :source-map-timestamp true}}
+
+             {:id "vdom-benchmark-domaren"
+              :source-paths ["src" "examples/vdom-benchmark-domaren/src"]
+              :compiler {:main vdom-benchmark-domaren.core
+                         :asset-path "js/compiled/out"
+                         :output-to "examples/vdom-benchmark-domaren/web/js/compiled/vdom-benchmark-domaren.js"
+                         :optimizations :simple}}]}
 
   :figwheel {:nrepl-port 7888
              :nrepl-middleware ["cider.nrepl/cider-middleware"

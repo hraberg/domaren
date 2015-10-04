@@ -1,4 +1,5 @@
 /examples/todomvc/resources/public/js/compiled/**
+/examples/vdom-benchmark-domaren/web/js/compiled/**
 figwheel_server.log
 pom.xml
 *jar

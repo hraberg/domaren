@@ -269,6 +269,8 @@
   (binding [*refresh* (compare-and-set! request-refresh true false)
             *mounted-nodes* (atom [])]
     (let [current-node (.-firstChild node)
+          f (cond-> f
+              (vector? f) constantly)
           new-node (apply component->dom! current-node {:root true} f state)]
       (when-not (= new-node current-node)
         (register-top-level-event-handlers! new-node)
