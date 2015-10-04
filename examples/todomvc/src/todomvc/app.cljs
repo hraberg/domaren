@@ -1,7 +1,7 @@
 (ns todomvc.app
-    (:require [cljs.reader :as r]
-              [clojure.string :as s]
-              [domaren.core :as d]))
+  (:require [cljs.reader :as r]
+            [clojure.string :as s]
+            [domaren.core :as d]))
 
 ;; Based on https://github.com/reagent-project/reagent/blob/master/examples/todomvc/src/todomvc/core.cljs
 
