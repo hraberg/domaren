@@ -5,7 +5,7 @@
 
 ### ClojureScript [incremental-dom](https://google.github.io/incremental-dom) style library.
 
-*No Docs. No Tests. No Features.*
+*No docs. No tests. No features.*
 
 
 ## Overview
@@ -43,6 +43,13 @@ and open your browser at [localhost:3449](http://localhost:3449/).
 To clean all compiled files:
 
     lein clean
+
+## Benchmark
+
+There's an implementation of the
+[`vdom-benchmark`](http://vdom-benchmark.github.io/vdom-benchmark/) in
+`examples/vdom-benchmark-domaren`. It's currently about 5x slower than
+React.
 
 
 ## References
