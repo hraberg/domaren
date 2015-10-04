@@ -14,7 +14,8 @@
   :profiles {:dev {:resource-paths ["examples/todomvc/resources"]
                    :dependencies [[com.cemerick/piggieback "0.2.1"
                                    :exclude [org.clojure/clojurescript]]
-                                  [org.clojure/tools.nrepl "0.2.10"]]}}
+                                  [org.clojure/tools.nrepl "0.2.10"]]
+                   :repl-options {:nrepl-middleware [cemerick.piggieback/wrap-cljs-repl]}}}
 
   :source-paths ["src"]
 
