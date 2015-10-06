@@ -60,7 +60,7 @@
     (js-delete attrs k)
     (.removeAttribute node k)))
 
-(defn remove-children-starting-at! [node]
+(defn remove-siblings-starting-at! [node]
   (when node
     (while (.-nextSibling node)
       (.remove (.-nextSibling node)))
@@ -100,7 +100,7 @@
         (recur (first stack) (next stack) child)
 
         (nil? h)
-        (remove-children-starting-at! child)
+        (remove-siblings-starting-at! child)
 
         :else
         (let [key (some-> h meta :key str)
@@ -257,6 +257,11 @@
 
 ;; Public API
 
+(defn remove-root!
+  "Removes all nodes created under node."
+  [node]
+  (some-> node .-firstChild remove-siblings-starting-at!))
+
 (defn render-str
   "Renders component f to a HTML string."
   [f & state]
@@ -284,18 +289,30 @@
 (defn render!
   "Render loop using requestAnimationFrame and IWatch to track state
   changes, usually on atoms. Derefences both f and state before
-  passing them to render-root! on state change."
+  passing them to render-root! on state change.
+
+  Returns a function that takes no arguments that will uninstall the
+  render loop and remove the generated DOM."
   [node f & state]
   (let [f (maybe-deref f)
         tick-requested? (atom false)
-        tick (fn []
-               (reset! tick-requested? false)
-               (apply render-root! node f (mapv maybe-deref state)))
-        request-tick! #(when (compare-and-set! tick-requested? false true)
-                         (js/requestAnimationFrame tick))]
-    (doseq [w (filter #(satisfies? IWatchable %) state)]
+        running? (atom true)
+        tick #(when @running?
+                (reset! tick-requested? false)
+                (apply render-root! node f (mapv maybe-deref state)))
+        request-tick! #(when (and @running?
+                                  (compare-and-set! tick-requested? false true))
+                         (js/requestAnimationFrame tick))
+        watchables (filter #(satisfies? IWatchable %) state)
+        stop-render! (fn stop-render! []
+                       (reset! running? false)
+                       (doseq [w watchables]
+                         (-remove-watch w ::tick))
+                       (remove-root! node))]
+    (doseq [w watchables]
       (-add-watch w ::tick request-tick!))
-    (request-tick!)))
+    (request-tick!)
+    stop-render!))
 
 (defn refresh!
   "Forces a full refersh of the DOM."

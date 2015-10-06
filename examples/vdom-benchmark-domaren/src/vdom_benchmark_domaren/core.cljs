@@ -14,7 +14,7 @@
   (setUp [_])
 
   (tearDown [_]
-    (some-> container .-firstChild .remove))
+    (d/remove-root! container))
 
   (render [_]
     (d/render-root! container [:div (render-tree a)]))

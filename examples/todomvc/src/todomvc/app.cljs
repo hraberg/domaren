@@ -116,11 +116,12 @@
 (.addEventListener js/window "hashchange" on-hashchange)
 (on-hashchange)
 
-(d/render! (.getElementById js/document "app")
-           (with-meta todo-app
-             {:did-update #(set! (.-innerHTML (js/document.getElementById "message"))
-                                 (str (aget % "__domaren" "render-time") "ms"))})
-           todos filt edited-todo)
+(def stop-render!
+  (d/render! (.getElementById js/document "app")
+             (with-meta todo-app
+               {:did-update #(set! (.-innerHTML (js/document.getElementById "message"))
+                                   (str (aget % "__domaren" "render-time") "ms"))})
+             todos filt edited-todo))
 
 ;; From https://github.com/swannodette/todomvc/blob/gh-pages/labs/architecture-examples/om/src/todomvc/app.cljs
 (aset js/window "benchmark1"
