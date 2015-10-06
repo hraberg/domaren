@@ -44,12 +44,13 @@ To clean all compiled files:
 
     lein clean
 
+
 ## Benchmark
 
 There's an implementation of the
 [`vdom-benchmark`](http://vdom-benchmark.github.io/vdom-benchmark/) in
-`examples/vdom-benchmark-domaren`. It's currently about 5x slower than
-React.
+`examples/vdom-benchmark-domaren`. It's currently about 4x slower than
+React, 10x slower than Incremental DOM and 15x slower than virtual-dom.
 
 
 ## References
