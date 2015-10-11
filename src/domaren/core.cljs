@@ -5,6 +5,12 @@
 (def TIME_COMPONENTS false)
 (def TIME_FRAME false)
 
+(defn debug [& args]
+  (when DEBUG
+    (.apply (.-debug js/console) js/console (into-array (map #(if ((some-fn keyword? coll?) %)
+                                                                (pr-str %)
+                                                                %) args)))))
+
 (declare component->dom! hiccup->dom! hiccup->str)
 
 (defn node-state
@@ -32,11 +38,13 @@
 
 (defn create-element [node tag]
   (if (= tag (node-state node "tag"))
-    node
-    (doto (-> (or (aget elements tag)
-                  (aset elements tag (.createElement js/document tag)))
-              (.cloneNode false))
-      init-node-state!)))
+    (do (debug :reusing-element node)
+        node)
+    (do (debug :create-element tag)
+        (doto (-> (or (aget elements tag)
+                      (aset elements tag (.createElement js/document tag)))
+                  (.cloneNode false))
+          init-node-state!))))
 
 (defn set-properties! [node properties]
   (doseq [[k v] properties
@@ -77,15 +85,18 @@
 (defn reconcile! [node child old-child hiccup]
   (let [child (if (and child old-child
                        (not= child old-child))
-                (.insertBefore node old-child child)
+                (do (debug :insert-before old-child child)
+                    (.insertBefore node old-child child))
                 child)
         new-child (hiccup->dom! child hiccup)]
     (cond
       (and child (not= child new-child))
-      (.replaceChild node new-child child)
+      (do (debug :replace-child new-child child)
+          (.replaceChild node new-child child))
 
       (not child)
-      (.appendChild node new-child))
+      (do (debug :append-child new-child)
+          (.appendChild node new-child)))
     new-child))
 
 (defn align-children! [node children]
@@ -118,12 +129,11 @@
            id (attributes :id id)
            handlers (event-handlers attributes)
            form-properties (select-keys attributes [:value :checked :selected :selectedIndex])
-           properties (cond-> form-properties
-                        class (assoc :className class))
-           attributes (cond-> (apply dissoc attributes :id :class
-                                     (concat (keys handlers) (keys properties)))
-                        id (assoc :id id))]
-       {:tag tag :attributes attributes :properties properties :handlers handlers
+           attributes (cond-> (apply dissoc attributes :id
+                                     (concat (keys handlers) (keys form-properties)))
+                        id (assoc :id id)
+                        class (assoc :class class))]
+       {:tag tag :attributes attributes :properties form-properties :handlers handlers
         :attributes-to-keep (set (mapv name (keys attributes)))}))))
 
 (defn normalize-hiccup [hiccup]
@@ -152,9 +162,11 @@
 
 (defn text->dom! [node text]
   (if (text-node? node)
-    (cond-> node
-      (not= (.-textContent node) text) (doto (aset "textContent" text)))
-    (.createTextNode js/document text)))
+    (do (debug :reusing-text-node node)
+        (cond-> node
+          (not= (.-textContent node) text) (doto (aset "textContent" text))))
+    (do (debug :create-text-node text)
+        (.createTextNode js/document text))))
 
 (defn hiccup->dom! [node hiccup]
   (cond
@@ -232,8 +244,7 @@
             opts (merge (meta f) opts)
             component-name (component-name f)
             render-start (.now js/Date)]
-        (when DEBUG
-          (.debug js/console component-name node (s/trim (pr-str state))))
+        (debug :component component-name node state)
         (let [node (hiccup->dom! node (apply f state))
               render-time (- (.now js/Date) render-start)]
           (set-node-state! node "render-time" render-time)
@@ -243,7 +254,8 @@
             (component-callbacks! opts (node-state node "state") state)
             (set-node-state! "component" f)
             (set-node-state! "state" state))))
-      node)))
+      (do (debug :should-not-update node)
+          node))))
 
 (defn maybe-deref [x]
   (cond-> x (satisfies? IDeref x) deref))
