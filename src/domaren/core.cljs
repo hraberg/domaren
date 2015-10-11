@@ -86,8 +86,11 @@
        :private true}
   re-tag #"([^\s\.#]+)(?:#([^\s\.#]+))?(?:\.([^\s#]+))?")
 
+(defn hiccup-key [hiccup]
+  (some-> hiccup meta :key str))
+
 (defn reconcile! [node child old-child hiccup]
-  (debug :reconcile (or (some-> hiccup meta :key) "") child old-child)
+  (debug :reconcile (or (hiccup-key hiccup) "") child old-child)
   (let [child (if (and child old-child
                        (not= child old-child))
                 (do (debug :insert-before node old-child child)
@@ -105,7 +108,7 @@
     new-child))
 
 (defn align-children! [node children]
-  (let [key-map (node-state node "keys")
+  (let [key-map (or (node-state node "keys") #js {})
         new-key-map #js {}]
     (loop [[h & hs] children stack nil child (.-firstChild node)]
       (cond
@@ -119,8 +122,10 @@
         (remove-siblings-starting-at! child)
 
         :else
-        (let [key (some-> h meta :key str)
-              old-child (some-> key-map (aget key))
+        (let [key (hiccup-key h)
+              old-child (aget key-map key)
+              _  (when-not old-child
+                   (some->> (node-state child "key") (js-delete key-map)))
               child (cond->> (reconcile! node child old-child h)
                       key (aset new-key-map key))]
           (recur hs stack (.-nextSibling child)))))
@@ -160,18 +165,19 @@
       (keep-attributes! attributes-to-keep)
       (set-properties! properties)
       (align-children! children)
-      (register-event-handlers! handlers))))
+      (register-event-handlers! handlers)
+      (set-node-state! "key" (hiccup-key hiccup)))))
 
 (defn ^boolean text-node? [node]
   (some-> node .-nodeType (== (.-TEXT_NODE js/Node))))
 
 (defn text->dom! [node text]
   (if (text-node? node)
-    (do (debug :reusing-text-node node)
+    (do (debug :reusing-text-node (.-nodeValue node) text)
         (cond-> node
-          (not= (.-textContent node) text) (doto (aset "textContent" text))))
-    (do (debug :create-text-node text)
-        (.createTextNode js/document text))))
+          (not= (.-nodeValue node) text) (doto (aset "nodeValue" text))))
+    (doto (.createTextNode js/document text)
+      (->>  (debug :create-text-node)))))
 
 (defn hiccup->dom! [node hiccup]
   (cond
