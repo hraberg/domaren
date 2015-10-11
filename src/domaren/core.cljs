@@ -1,15 +1,9 @@
 (ns domaren.core
-    (:require [clojure.string :as s]))
+    (:require [clojure.string :as s])
+    (:require-macros [domaren.debug :as d]))
 
-(def DEBUG false)
 (def TIME_COMPONENTS false)
 (def TIME_FRAME false)
-
-(defn debug [& args]
-  (when DEBUG
-    (.apply (.-debug js/console) js/console (into-array (map #(if ((some-fn keyword? coll?) %)
-                                                                (pr-str %)
-                                                                %) args)))))
 
 (declare component->dom! hiccup->dom! hiccup->str)
 
@@ -38,12 +32,12 @@
 
 (defn create-element [node tag]
   (if (= tag (node-state node "tag"))
-    (do (debug :reusing-element node)
+    (do (d/debug :reusing-element node)
         node)
     (doto (-> (or (aget elements tag)
                   (aset elements tag (.createElement js/document tag)))
               (.cloneNode false))
-      (->> (debug :create-element))
+      (->> (d/debug :create-element))
       init-node-state!)))
 
 (defn set-properties! [node properties]
@@ -69,7 +63,7 @@
     (.removeAttribute node k)))
 
 (defn remove-node [node]
-  (debug :remove-node (.-parentNode node) node)
+  (d/debug :remove-node (.-parentNode node) node)
   (.remove node))
 
 (defn remove-siblings-starting-at! [node]
@@ -90,20 +84,20 @@
   (some-> hiccup meta :key str))
 
 (defn reconcile! [node child old-child hiccup]
-  (debug :reconcile (or (hiccup-key hiccup) "") child old-child)
+  (d/debug :reconcile (or (hiccup-key hiccup) "") child old-child)
   (let [child (if (and child old-child
                        (not= child old-child))
-                (do (debug :insert-before node old-child child)
+                (do (d/debug :insert-before node old-child child)
                     (.insertBefore node old-child child))
                 child)
         new-child (hiccup->dom! child hiccup)]
     (cond
       (and child (not= child new-child))
-      (do (debug :replace-child node new-child child)
+      (do (d/debug :replace-child node new-child child)
           (.replaceChild node new-child child))
 
       (not child)
-      (do (debug :append-child node new-child)
+      (do (d/debug :append-child node new-child)
           (.appendChild node new-child)))
     new-child))
 
@@ -173,11 +167,11 @@
 
 (defn text->dom! [node text]
   (if (text-node? node)
-    (do (debug :reusing-text-node (.-nodeValue node) text)
+    (do (d/debug :reusing-text-node (.-nodeValue node) text)
         (cond-> node
           (not= (.-nodeValue node) text) (doto (aset "nodeValue" text))))
     (doto (.createTextNode js/document text)
-      (->>  (debug :create-text-node)))))
+      (->>  (d/debug :create-text-node)))))
 
 (defn hiccup->dom! [node hiccup]
   (cond
@@ -255,7 +249,7 @@
             opts (merge (meta f) opts)
             component-name (component-name f)
             render-start (.now js/Date)]
-        (debug :component component-name node state)
+        (d/debug :component component-name node state)
         (let [node (hiccup->dom! node (apply f state))
               render-time (- (.now js/Date) render-start)]
           (set-node-state! node "render-time" render-time)
@@ -265,7 +259,7 @@
             (component-callbacks! opts (node-state node "state") state)
             (set-node-state! "component" f)
             (set-node-state! "state" state))))
-      (do (debug :should-not-update node)
+      (do (d/debug :should-not-update node)
           node))))
 
 (defn maybe-deref [x]
