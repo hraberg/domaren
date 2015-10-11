@@ -40,11 +40,11 @@
   (if (= tag (node-state node "tag"))
     (do (debug :reusing-element node)
         node)
-    (do (debug :create-element tag)
-        (doto (-> (or (aget elements tag)
-                      (aset elements tag (.createElement js/document tag)))
-                  (.cloneNode false))
-          init-node-state!))))
+    (doto (-> (or (aget elements tag)
+                  (aset elements tag (.createElement js/document tag)))
+              (.cloneNode false))
+      (->> (debug :create-element))
+      init-node-state!)))
 
 (defn set-properties! [node properties]
   (doseq [[k v] properties
@@ -68,11 +68,15 @@
     (js-delete attrs k)
     (.removeAttribute node k)))
 
+(defn remove-node [node]
+  (debug :remove-node (.-parentNode node) node)
+  (.remove node))
+
 (defn remove-siblings-starting-at! [node]
   (when node
     (while (.-nextSibling node)
-      (.remove (.-nextSibling node)))
-    (.remove node)))
+      (remove-node (.-nextSibling node)))
+    (remove-node node)))
 
 (defn event-handlers [attributes]
   (into {} (filter #(instance? js/Function (val %)) attributes)))
@@ -83,19 +87,20 @@
   re-tag #"([^\s\.#]+)(?:#([^\s\.#]+))?(?:\.([^\s#]+))?")
 
 (defn reconcile! [node child old-child hiccup]
+  (debug :reconcile (or (some-> hiccup meta :key) "") child old-child)
   (let [child (if (and child old-child
                        (not= child old-child))
-                (do (debug :insert-before old-child child)
+                (do (debug :insert-before node old-child child)
                     (.insertBefore node old-child child))
                 child)
         new-child (hiccup->dom! child hiccup)]
     (cond
       (and child (not= child new-child))
-      (do (debug :replace-child new-child child)
+      (do (debug :replace-child node new-child child)
           (.replaceChild node new-child child))
 
       (not child)
-      (do (debug :append-child new-child)
+      (do (debug :append-child node new-child)
           (.appendChild node new-child)))
     new-child))
 
