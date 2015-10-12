@@ -44,7 +44,7 @@
                         :source-paths ["src" "examples/devcards/src"]
                         :figwheel {:devcards true
                                    :css-dirs ["examples/devcards/resources/public/css"]}
-                        :compiler {:main       domaren-devcards.core
+                        :compiler {:main domaren-devcards.core
                                    :asset-path "js/devcards/compiled/out"
                                    :output-to "examples/devcards/resources/public/js/devcards/compiled/domaren-devcards.js"
                                    :output-dir "examples/devcards/resources/public/js/devcards/compiled/out"
