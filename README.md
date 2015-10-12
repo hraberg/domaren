@@ -44,6 +44,12 @@ To clean all compiled files:
 
     lein clean
 
+For devcards:
+
+    lein figwheel devcards
+
+and open your browser at [localhost:3449](http://localhost:3449/cards.html).
+
 
 ## Benchmark
 
