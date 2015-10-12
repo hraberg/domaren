@@ -48,7 +48,7 @@ For devcards:
 
     lein figwheel devcards
 
-and open your browser at [localhost:3449](http://localhost:3449/cards.html).
+and open your browser at [localhost:3449/cards.html](http://localhost:3449/cards.html).
 
 
 ## Benchmark
